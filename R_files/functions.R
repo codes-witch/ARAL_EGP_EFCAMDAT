@@ -2,21 +2,42 @@
 # ------------------------------ DATA PREP ------------------------------
 # -----------------------------------------------------------------------
 
-# Grab the text from the ef dataframe and put it in .txt files
+# Grabs the text from the ef dataframe and put
+# it in .txt files in the provided directory
 ef_text_2_txt <- function(dataframe, directory) {
   # Create the directory to store the text files (if it doesn't exist)
   dir.create(directory, showWarnings = FALSE)
-  
+
   # Iterate over each row in the df
   for (i in 1:nrow(dataframe)) {
-    # Create a subdir for each level (if it doesn't exist)
-    level_directory <- paste0(directory, "/", dataframe$cefr_level[i])
+    cefr_level <- dataframe$cefr_level[i]
     learner_id <- dataframe$learnerID[i]
-    dir.create(level_directory, showWarnings = FALSE)
-    # print(level_directory)
-    lang_code <- if_else(is.na(dataframe$lang_iso[i]) || dataframe$lang_iso[i] == "", "xx", dataframe$lang_iso[i])
-    # filename for each row. Structure: ID_unit_L1.txt
-    filename <- paste0(level_directory, "/", dataframe$id[i], "_", dataframe$unit[i], "_", lang_code, "_learner", learner_id,   ".txt")
+    ef_level <- dataframe$ef_level[i]
+    unit <- dataframe$unit[i]
+
+    # Create a subdir for each level (if it doesn't exist) and for start and end
+    lvl_dir_start <- paste0(directory, "/", cefr_level, "/start")
+    lvl_dir_end <- paste0(directory, "/", cefr_level, "/end")
+
+    dir.create(lvl_dir_start, showWarnings = FALSE, recursive = TRUE)
+    dir.create(lvl_dir_end, showWarnings = FALSE, recursive = TRUE)
+
+    start_ef_lvl <- get_start_ef_level(cefr_level)
+    end_ef_lvl <- get_end_ef_level(cefr_level)
+    start_units <- get_start_units(cefr_level)
+    end_units <- get_end_units(cefr_level)
+
+    if (ef_level == start_ef_lvl && unit %in% start_units) {
+      level_directory <- lvl_dir_start
+    } else if (ef_level == end_ef_lvl && unit %in% end_units) {
+       level_directory <- lvl_dir_end
+    } else {
+      # skip text if it's not the start level with first units or end level with last units
+      next
+    }
+
+    # filename for each row. Structure: ID_unit_EFlevel_learnerId.txt
+    filename <- paste0(level_directory, "/", dataframe$id[i], "_unit", dataframe$unit[i], "_eflvl", ef_level, "_learner", learner_id,   ".txt")
     
     file_conn <- file(filename, open = "w")
 
@@ -27,7 +48,47 @@ ef_text_2_txt <- function(dataframe, directory) {
   }
 }
 
-rename_column <- function(dataframe, old_idx, new_name){
+# Get the EF level at which a cefr level starts
+get_start_ef_level <- function(cefr_level) {
+  start <- switch(cefr_level,
+                  "a1"= 1,
+                  "a2"= 4,
+                  "b1"= 7,
+                  "b2"= 10,
+                  "c1"= 13,
+                  "c2"= 16,
+                  "INVALID CEFR LEVEL"
+                )
+
+  return(start)
+}
+
+# Get the EF level at which a CEFR level ends
+get_end_ef_level <- function(cefr_level) {
+  if (cefr_level == "c2") {
+    return(16)
+  } else {
+    return(get_start_ef_level(cefr_level) + 2)
+  }
+}
+
+get_start_units <- function(cefr_level, n = 6) {
+  if (n > 8) {
+    print("Cannot use more than 8 units")
+    return()
+  }
+
+  return(as.list(seq(1:n)))
+}
+
+get_end_units <- function(cefr_level, n = 6) {
+  # start at 8 and iterate backwards
+  ret_val <- as.list(seq(from = 8, by = -1, length.out = n))
+  return(ret_val)
+}
+
+
+rename_column <- function(dataframe, old_idx, new_name) {
   colnames(dataframe)[old_idx] <- new_name
   return(dataframe)
 }
