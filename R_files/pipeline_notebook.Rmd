@@ -1,0 +1,139 @@
+---
+title: "Analysis pipeline"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+
+## Preparing the environment
+
+```{r}
+setwd("/home/daniela/Documents/thesis/R_files/")
+load("./.RData")
+source("/home/daniela/Documents/thesis/R_files/functions.R")
+library(ggplot2)
+library(gridExtra)
+library("dplyr")
+library("stringr")
+library(tidyr)
+library(tools)
+library(knitr)
+load("/home/daniela/Documents/corpus_annotation_tp/R_files/ef2_short_lvl.RData")
+all_features <- readLines("all_features.txt")
+```
+
+## Filtering the texts for analysis
+
+First, we obtain the IDs of the students that have finished the desired number of texts at each level. We also extract the texts from the dataframe with the corpus and put them in the correct folders to be annotated by the python script.
+
+```{r}
+input_path = "../text_annotation/data/input_130924_2/"
+learners_a1_full <- ef2_short %>%
+  filter(cefr_level == "a1") %>%
+  count(learnerID) %>%
+  filter(n >= 24) %>%
+  pull(learnerID)
+
+ef2_short %>%
+  filter(cefr_level == "a1", learnerID %in% learners_a1_full) %>%
+  ef_text_2_txt(input_path)
+
+################ A2 ################ 
+
+learners_a2_full <- ef2_short %>%
+  filter(cefr_level == "a2") %>%
+  count(learnerID) %>%
+  filter(n >= 24) %>%
+  pull(learnerID)
+
+ef2_short %>%
+  filter(cefr_level == "a2", learnerID %in% learners_a2_full) %>%
+  ef_text_2_txt(input_path)
+
+################ B1 ################ 
+learners_b1_full <- ef2_short %>%
+  filter(cefr_level == "b1") %>%
+  count(learnerID) %>%
+  filter(n >= 24) %>%
+  pull(learnerID)
+
+ef2_short %>%
+  filter(cefr_level == "b1", learnerID %in% learners_b1_full) %>%
+  ef_text_2_txt(input_path)
+
+################ B2 ################ 
+learners_b2_full <- ef2_short %>%
+  filter(cefr_level == "b2") %>%
+  count(learnerID) %>%
+  filter(n >= 24) %>%
+  pull(learnerID)
+
+ef2_short %>%
+  filter(cefr_level == "b2", learnerID %in% learners_b2_full) %>%
+  ef_text_2_txt(input_path)
+
+################ C1 ################ 
+learners_c1_full <- ef2_short %>%
+  filter(cefr_level == "c1") %>%
+  count(learnerID) %>%
+  filter(n >= 24) %>%
+  pull(learnerID)
+
+ef2_short %>%
+  filter(cefr_level == "c1", learnerID %in% learners_c1_full) %>%
+  ef_text_2_txt(input_path)
+
+
+################ C2 ################ 
+learners_c2_full <- ef2_short %>%
+  filter(cefr_level == "c2") %>%
+  count(learnerID) %>%
+  filter(n >= 8) %>%
+  pull(learnerID)
+
+ef2_short %>%
+  filter(cefr_level == "c2", learnerID %in% learners_c2_full) %>%
+  ef_text_2_txt(input_path)
+```
+
+
+<run the python code... >
+
+After the annotation is complete, read in the annotations. At each level, count how many times every student used all constructs. (NOTE: This has been deprecated as of October 2024!)
+
+```{r}
+output_path = "../text_annotation/data/output_filtered_07032024/a1/csv/"
+
+# Create a df for the avg at each level
+feat_level_avg_students <- data.frame(matrix(ncol = length(all_features), nrow = 6))
+colnames(feat_level_avg_students) <- all_features
+rownames(feat_level_avg_students) <- c("a1", "a2", "b1", "b2", "c1", "c2")
+
+# Get students that completed "n" A1 texts
+# NOTE: There are many texts - this will take a long time
+a1_feat_count_per_student_short <- get_feat_count_per_student(all_features, 24, ouput_path, learner_ids = learners_a1_full, FALSE)
+a1_feat_count_per_student_long <- make_long_feats_df(cbind("learnerID" = rownames(a1_feat_count_per_student_short), a1_feat_count_per_student_short), "learnerID", "total")
+a1_learner_wc <- get_learner_word_count_df(learners_a1_full, "../text_annotation/data/output_filtered_07032024/a1/text")
+
+# normalize per 1k words
+a1_normalized_counts_students_short <- a1_feat_count_per_student_short / a1_learner_wc$word_count * 1000 
+a1_normalized_counts_students_long <- make_long_feats_df(cbind("learnerID" = rownames(a1_feat_count_per_student_short), a1_normalized_counts_students_short), "learnerID", "total")
+
+# Fill in df with the mean of all features
+feat_level_avg_students["a1",] <- colMeans(a1_normalized_counts_students_short)
+
+a2_feat_count_per_student_short <- get_feat_count_per_student(all_features, 24, "../text_annotation/data/output_filtered_07032024/a2/csv/", learner_ids = learners_a2_full, FALSE)
+a2_feat_count_per_student_long <- make_long_feats_df(cbind("learnerID" = rownames(a2_feat_count_per_student_short), a2_feat_count_per_student_short), "learnerID", "total")
+
+```
+All texts have been annotated. However, for each student, we only want to analyze the first and last 'n' units of their cefr level. 
+
+For each student at each level, get the IDs of their texts representing the first and last n writings
+
+```{r}
+
+```
+
+
+
