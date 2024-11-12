@@ -6,8 +6,8 @@ import requests
 import utils
 import re
 
-timeout_path = "data/timeout_130924"
-error_path = "data/error_130924"
+timeout_path = "data/timeout_12Nov24"
+error_path = "data/error_12Nov24"
 
 def annotate_text(url, input_path, output_path_text, output_path_csv, max_size=360):
     """
@@ -238,15 +238,17 @@ def update_nwords_file(chunk, level):
 
 if __name__ == "__main__":
     url = "http://polke.kibi.group/extractor?text="
-    input_dir = "data/input_130924/" # Note that we should never run this script from data/timeout/ because even those chunks that time out will be deleted: Move timed out files to input and try again
-    output_dir = "data/output_130924/"
+    input_dir = "data/input_12Nov24/" # Note that we should never run this script from data/timeout/ because even those chunks that time out will be deleted: Move timed out files to input and try again
+    output_dir = "data/outputDELETE_12Nov24/"
 
     file_paths = utils.get_file_paths(input_dir)
     file_paths_len = len(file_paths)
     for n, input_path in enumerate(file_paths):
-        print("Input", input_path)
         print("File", n, "of", file_paths_len)
-        level = os.path.split(input_path)[0][-2:]
-        output_path_text = os.path.join(output_dir, level, "text", os.path.split(input_path)[1][:-4])
-        output_path_csv = os.path.join(output_dir, level, "csv", os.path.split(input_path)[1][:-4])
+        print(input_path)
+        level = input_path.split(os.sep)[2]
+        start_or_end = input_path.split(os.sep)[3] # whether the text was taken from a learner starting or ending the cefr level
+        print(level)
+        output_path_text = os.path.join(output_dir, level, start_or_end, "text", os.path.split(input_path)[1][:-4])
+        output_path_csv = os.path.join(output_dir, level, start_or_end, "csv", os.path.split(input_path)[1][:-4])
         annotate_text(url, input_path, output_path_text, output_path_csv)
