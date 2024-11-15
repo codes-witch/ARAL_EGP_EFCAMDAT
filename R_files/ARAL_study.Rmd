@@ -21,6 +21,7 @@ library(knitr)
 library("tidytext")
 load("/home/daniela/Documents/ARAL_EGP_EFCAMDAT/R_files/ef2_20181231.RData")
 all_features <- readLines("all_features.txt")
+opts_chunk$set(cache = TRUE)
 ```
 
 First, I we get rid of all texts that have not achieved the passing grade of X (TODO)
@@ -39,7 +40,7 @@ We are left with 832810 texts. Now, we add a column with the CEFR level that eac
 # rename the "level" column (which is at index 2)
 colnames(ef2)[2] <- "ef_level"
 # remove unnecessary colums
-ef2 <- ef2[, !colnames(ef2) %in% c("text", "corrected")]
+ef2 <- ef2[, !colnames(ef2) %in% c("text", "corrected", "nationality")]
 # add cefr level
 ef2_prepared <- add_cefr_from_ef_levels(ef2)
 
@@ -53,6 +54,8 @@ Now, get the learnerIDs of people who have finished their respective CEFR levels
 ```{r}
 # Get those students that completed each level
 # (except C2, for which we only need the students who completed the first three units)
+
+
 cefr_ef_lvls <- list(
   "A1" = c(1:3),
   "A2" = c(4:6),
@@ -62,19 +65,28 @@ cefr_ef_lvls <- list(
   "C2" = c(16)
 )
 
+# A dataframe containing the (ef_level, unit) pairs that we are interested in
+ef_lvl_unit_df <- data.frame(ef_lvl = sapply(cefr_ef_lvls, ))
+ef_lvl_unit_df
 list_students_finsihed <- list()
 
 
 for (cur_cefr_lvl in names(cefr_ef_lvls)) {
-  if (cur_cefr_lvl != "C2") {
-    learners_finished <- ef2_prepared %>%
-      filter(ef_level == last(cefr_ef_lvls[[cur_cefr_lvl]]) & unit == 8) %>% # Only rows of the last unit of last EF level of CEFR level}
-      pull(unique(learnerID))
-  } else {
-    learners_finished <- ef2_prepared %>%
-      filter(ef_level == last(cefr_ef_lvls[[cur_cefr_lvl]]) & unit == 3) %>% # Only rows of those who started C2 (and did at least until unit 3)
-      pull(unique(learnerID))
+  # Minimum number of texts the learner should have completed in the subset that will be taken into account
+  min_n_texts <- 6 #(only top 3 and highest and lowest units in the level)
+
+  if (cur_cefr_lvl == "A1") {
+    min_n_texts <- 9 # top 6 lowest + top 3 highest
+  } else if (cur_cefr_lvl == "C2") {
+    min_n_texts  <- 3 # top 3 lowest
   }
+
+  learners_finished <- ef2_prepared %>%
+    filter(cefr_level == tolower(cur_cefr_lvl) & !is.na(combined_cefr)) %>% # current cefr level top high/low units
+    group_by(learnerID) %>%
+    summarise(units_count = n_distinct(ef_level, unit)) %>% # number of unique ef_level-unit pairs each learner has completed 
+    filter(units_count == min_n_texts) %>% # only those that have completed all units at least once 
+    pull(learnerID)
 
   list_students_finsihed[[cur_cefr_lvl]] <- learners_finished
 }
@@ -83,17 +95,45 @@ for (cur_cefr_lvl in names(cefr_ef_lvls)) {
 for (lvl in names(list_students_finsihed)) {
   print(paste(lvl, length(list_students_finsihed[[lvl]])))
 }
+
+# 49 is the minimum number of students having finished a level (C1)
+min_num_students <- min(sapply(list_students_finsihed, length))
 ```
 
-We now know that in order to have a balanced sample, we can have at most 75 students of any given level in the combined CEFR levels.
-Namely, each combined class will have 75 students from the lower level and 75 students from the higher level.
+We now know that in order to have a balanced sample, we can have at most 49 students of any given level in the combined CEFR levels.
+Namely, each combined class will have 49 students from the lower level and 49 students from the higher level.
 
-From the learners who completed the levels, we must sample 75 without replacement.
+From the learners who completed the levels, we must sample 49 without replacement.
 These people's texts in the first and last three units of their CEFR levels will be the ones to be analyzed.
-In total, at each combined level we will have scripts written by 150 students and we will use them as a "snapshot" of their proficiency once the lower level reached.
+In total, at each combined level we will have scripts written by 98 students and we will use them as a "snapshot" of their proficiency once the lower level reached.
 
 Now, we must sample the students and extract their texts to be analyzed by the POLKE tool.
 
 ```{r}
+sampled_learners <- list()
+set.seed(123)
+for (level in names(cefr_ef_lvls)) {
+  sampled_learners[[level]] <- sample(list_students_finsihed[[level]], min_num_students, replace = FALSE)
+}
 
+# To check that the sampling is deterministic, run this line several times and check the learnerIDs
+#sapply(sampled_learners, function(x) sort(unique(x)))
+```
+
+Students have been sampled. Now, we need to extract their texts and put them in .txt files to be analyzed by the python script.
+
+```{r}
+
+input_path <- "/home/daniela/Documents/ARAL_EGP_EFCAMDAT/text_annotation/data/input_15Nov24/"
+df_filtered_all <- ef2_prepared[0, ]
+
+for (lvl in names(cefr_ef_lvls)) {
+  filtered_df <- ef2_prepared %>%
+    filter(cefr_level == tolower(lvl) & learnerID %in% sampled_learners[[lvl]] & !is.na(combined_cefr))
+
+  df_filtered_all <- rbind(df_filtered_all, filtered_df)
+}
+
+# Put the texts into .txt files
+ef_text_2_txt(df_filtered_all, input_path)
 ```
