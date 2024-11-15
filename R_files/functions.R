@@ -94,7 +94,7 @@ add_cefr_from_ef_levels <- function(dataframe){
 }
 
 # Adds information about the combined CEFR levels that a text belongs to.
-# Specifically targets the first n units of a CEFR level. 
+# Specifically targets the first n units of a CEFR level.
 # (e.g. A0_A1 for low-A1, B1_B2 for high B1 and low B2)
 # n is the number of units of each level taken into account.
 # In the case of A0_A1, all n units come from the start of A1
@@ -126,38 +126,38 @@ add_feature_level <- function(dataframe){
     ))
 }
 
-put_learner_id_in_filenames <- function(directory_path, ef_df) {
-  # Get the list of files in the directory
-  file_list <- list.files(directory_path, full.names = TRUE, recursive = TRUE)
+# put_learner_id_in_filenames <- function(directory_path, ef_df) {
+#   # Get the list of files in the directory
+#   file_list <- list.files(directory_path, full.names = TRUE, recursive = TRUE)
   
-  # Iterate through each file
-  for (file_path in file_list) {
-    # Extract the filename without extension
-    file_name <- tools::file_path_sans_ext(basename(file_path))
-    extension <- paste0(".", tools::file_ext())
-    print(file_name)
+#   # Iterate through each file
+#   for (file_path in file_list) {
+#     # Extract the filename without extension
+#     file_name <- tools::file_path_sans_ext(basename(file_path))
+#     extension <- paste0(".", tools::file_ext())
+#     print(file_name)
     
-    if (grepl("learner", file_name)) {
-      next
-    }
+#     if (grepl("learner", file_name)) {
+#       next
+#     }
     
-    # Get textID
-    match <- regmatches(file_path, regexpr("\\d+_", file_path))
+#     # Get textID
+#     match <- regmatches(file_path, regexpr("\\d+_", file_path))
     
-    # Delete everything including and after thefirst underscore
-    textID <- sub("_.*", "", match[1])
+#     # Delete everything including and after thefirst underscore
+#     textID <- sub("_.*", "", match[1])
     
-    # Find the corresponding learnerId in ef2 dataset
-    learner_id <- ef_df$learnerID[ef_df$id == textID]
+#     # Find the corresponding learnerId in ef2 dataset
+#     learner_id <- ef_df$learnerID[ef_df$id == textID]
     
-    new_file_name <- paste0(file_name, "_learner", learner_id, extension)
-    new_file_path <- file.path(directory_path, new_file_name)
-    file.rename(file_path, new_file_path)
-    print(paste0("New file path: ", new_file_path))
-  }
+#     new_file_name <- paste0(file_name, "_learner", learner_id, extension)
+#     new_file_path <- file.path(directory_path, new_file_name)
+#     file.rename(file_path, new_file_path)
+#     print(paste0("New file path: ", new_file_path))
+#   }
   
   
-}
+# }
   
 
 # For renaming files to the pattern <file_id>_<unit>_<iso_code>.txt
@@ -189,7 +189,7 @@ put_learner_id_in_filenames <- function(directory_path, ef_df) {
 #     }
     
     
-}
+# }
   
 
 
@@ -255,16 +255,16 @@ put_learner_id_in_filenames <- function(directory_path, ef_df) {
 # -------------------------------------------------------------------
 
 # Function to count words in a text
-count_words <- function(text) {
-  # Use regular expressions to split text into words at both whitespace and punctuation boundaries
-  words <- str_split(text, "[\\s.,!?;:]+|(?<=[.,!?:;])(?=\\w)", simplify = TRUE)
-  # Filter out empty strings
-  words <- words[words != ""]
-  # Print the words (optional)
-  print(words)
-  print(length(words))
-  return(length(words))
-}
+# count_words <- function(text) {
+#   # Use regular expressions to split text into words at both whitespace and punctuation boundaries
+#   words <- str_split(text, "[\\s.,!?;:]+|(?<=[.,!?:;])(?=\\w)", simplify = TRUE)
+#   # Filter out empty strings
+#   words <- words[words != ""]
+#   # Print the words (optional)
+#   print(words)
+#   print(length(words))
+#   return(length(words))
+# }
 
 # Function to count words in all text files in a directory
 count_words_in_directory <- function(directory_path, pattern=NULL) {
@@ -282,7 +282,7 @@ count_words_in_directory <- function(directory_path, pattern=NULL) {
     # Combine lines into a single text (optional)
     text <- paste(text, collapse = " ")
     # Count words in the text
-    word_count <- count_words(text)
+    word_count <- tokenizers::count_words(text)
     print(text)
     total_word_count <- total_word_count + word_count
   }
@@ -589,7 +589,7 @@ make_long_feats_df <- function(dataframe, exclude_col, values_colname){
 # }
 
 # Each row in feat_count_per_student corresponds to a student and each column corresponds to a feature. 
-get_feat_count_per_student <- function(all_features, directory_path, make_long = TRUE, learner_ids) {
+get_feat_count_per_student <- function(directory_path, make_long = TRUE, learner_ids) {
 
   # define dataframe:
   feat_count_per_student <- data.frame(matrix(ncol = length(all_features), nrow = length(learner_ids)))
@@ -616,7 +616,7 @@ get_feat_count_per_student <- function(all_features, directory_path, make_long =
     }
   }
 
-  print("finished looping")
+  # print("finished looping")
 
   if (make_long){
     feat_count_per_student$learnerID <- rownames(feat_count_per_student)
