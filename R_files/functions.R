@@ -8,41 +8,29 @@ ef_text_2_txt <- function(dataframe, directory) {
   # Create the directory to store the text files (if it doesn't exist)
   dir.create(directory, showWarnings = FALSE)
 
+  # Only get relevant rows (top 3 highest/lowest units of CEFR level)
+  dataframe <- dataframe %>%
+    filter(!is.na(combined_cefr))
+
   # Iterate over each row in the df
   for (i in 1:nrow(dataframe)) {
     cefr_level <- dataframe$cefr_level[i]
     learner_id <- dataframe$learnerID[i]
     ef_level <- dataframe$ef_level[i]
     unit <- dataframe$unit[i]
+    combined_level <- dataframe$combined_cefr[i]
 
     # Create a subdir for each level (if it doesn't exist) and for start and end
-    lvl_dir_start <- paste0(directory, "/", cefr_level, "/start")
-    lvl_dir_end <- paste0(directory, "/", cefr_level, "/end")
+    lvl_dir <- paste0(directory, combined_level)
 
-    dir.create(lvl_dir_start, showWarnings = FALSE, recursive = TRUE)
-    dir.create(lvl_dir_end, showWarnings = FALSE, recursive = TRUE)
-
-    start_ef_lvl <- get_start_ef_level(cefr_level)
-    end_ef_lvl <- get_end_ef_level(cefr_level)
-    start_units <- get_start_units(cefr_level)
-    end_units <- get_end_units(cefr_level)
-
-    if (ef_level == start_ef_lvl && unit %in% start_units) {
-      level_directory <- lvl_dir_start
-    } else if (ef_level == end_ef_lvl && unit %in% end_units) {
-       level_directory <- lvl_dir_end
-    } else {
-      # skip text if it's not the start level with first units or end level with last units
-      next
-    }
+    dir.create(lvl_dir, showWarnings = FALSE, recursive = TRUE)
 
     # filename for each row. Structure: ID_unit_EFlevel_learnerId.txt
-    filename <- paste0(level_directory, "/", dataframe$id[i], "_unit", dataframe$unit[i], "_eflvl", ef_level, "_learner", learner_id,   ".txt")
-    
+    filename <- paste0(lvl_dir, "/", dataframe$writingID[i], "_unit", dataframe$unit[i], "_eflvl", ef_level, "_learner", learner_id,   ".txt") # nolint: line_length_linter
     file_conn <- file(filename, open = "w")
 
     # Write the text content to the file
-    writeLines(as.character(dataframe$text[i]), con = file_conn)
+    writeLines(as.character(dataframe$original[i]), con = file_conn)
 
     close(file_conn)
   }
@@ -51,14 +39,14 @@ ef_text_2_txt <- function(dataframe, directory) {
 # Get the EF level at which a cefr level starts
 get_start_ef_level <- function(cefr_level) {
   start <- switch(cefr_level,
-                  "a1"= 1,
-                  "a2"= 4,
-                  "b1"= 7,
-                  "b2"= 10,
-                  "c1"= 13,
-                  "c2"= 16,
-                  "INVALID CEFR LEVEL"
-                )
+    "a1" <- 1,
+    "a2" <- 4,
+    "b1" <- 7,
+    "b2" <- 10,
+    "c1" <- 13,
+    "c2" <- 16,
+    "INVALID CEFR LEVEL"
+  )
 
   return(start)
 }
@@ -88,11 +76,6 @@ get_end_units <- function(cefr_level, n = 6) {
 }
 
 
-rename_column <- function(dataframe, old_idx, new_name) {
-  colnames(dataframe)[old_idx] <- new_name
-  return(dataframe)
-}
-
 delete_column <- function(dataframe, colname) {
   dataframe <- dataframe[, !(colnames(dataframe) %in% colname)]
   return(dataframe)
@@ -100,29 +83,42 @@ delete_column <- function(dataframe, colname) {
 
 # To add cefr levels when we have EF levels
 add_cefr_from_ef_levels <- function(dataframe){
-  for (i in 1:nrow(dataframe)) {
-    print(i)
-    if (dataframe$ef_level[i] <= 3){
-      dataframe$cefr_level[i] <- "a1"
-    } else if (dataframe$ef_level[i] <= 6) {
-      dataframe$cefr_level[i] <- "a2"
-    } else if (dataframe$ef_level[i] <= 9) {
-      dataframe$cefr_level[i] <- "b1"
-    } else if (dataframe$ef_level[i] <= 12) {
-      dataframe$cefr_level[i] <- "b2"
-    } else if (dataframe$ef_level[i] <= 15) {
-      dataframe$cefr_level[i] <- "c1"
-    } else {
-      dataframe$cefr_level[i] <- "c2"
-    }
-  }
-  
+  dataframe <- dataframe %>%
+    mutate(cefr_level = case_when(
+      ef_level <= 3  ~ "a1",
+      ef_level <= 6  ~ "a2",
+      ef_level <= 9  ~ "b1",
+      ef_level <= 12 ~ "b2",
+      ef_level <= 15 ~ "c1",
+      TRUE           ~ "c2"
+    ), .after = ef_level)
   # CEFR levels are factors
   dataframe$cefr_level <- as.factor(dataframe$cefr_level)
-  return (dataframe)
+  return(dataframe)
 }
 
-# To add levels to a dataframe based on the feature
+# Adds information about the combined CEFR levels that a text belongs to.
+# Specifically targets the first n units of a CEFR level. 
+# (e.g. A0_A1 for low-A1, B1_B2 for high B1 and low B2)
+# n is the number of units of each level taken into account.
+# In the case of A0_A1, all n units come from the start of A1
+# In other cases, half the n units come from each of the CEFR levels in
+# the combination. N should not be higher than 4
+add_combined_level <- function(dataframe, n = 3) {
+
+  dataframe <- dataframe %>%
+    mutate(combined_cefr = case_when(
+      cefr_level == "a1" & ef_level == 1 & unit <= 2 * n ~ "A0_A1",
+      (cefr_level == "a1" & ef_level == 3 & unit > 8 - n) | (cefr_level == "a2" & ef_level == 4 & unit <= n) ~ "A1_A2", #nolint: line_length_linter.
+      (cefr_level == "a2" & ef_level == 6 & unit > 8 - n) | (cefr_level == "b1" & ef_level == 7 & unit <= n) ~ "A2_B1", # nolint: line_length_linter.
+      (cefr_level == "b1" & ef_level == 9 & unit > 8 - n) | (cefr_level == "b2" & ef_level == 10 & unit <= n) ~ "B1_B2", # nolint: line_length_linter.
+      (cefr_level == "b2" & ef_level == 12 & unit > 8 - n) | (cefr_level == "c1" & ef_level == 13 & unit <= n) ~ "B2_C1", # nolint: line_length_linter.
+      (cefr_level == "c1" & ef_level == 15 & unit > 8 - n) | (cefr_level == "c2" & ef_level == 16 & unit <= n) ~ "C1_C2", # nolint: line_length_linter.
+      TRUE ~ NA_character_
+    ))
+}
+
+# To add levels to a dataframe based on the construct as defined by the EGP
 add_feature_level <- function(dataframe){
   dataframe %>% mutate(feat_level = case_when(
          as.numeric(feature) < 110 ~ "A1",
@@ -597,17 +593,11 @@ get_feat_count_per_level <- function(all_features, directory_path, make_long = T
 }
 
 # Each row in feat_count_per_student corresponds to a student and each column corresponds to a feature. 
-get_feat_count_per_student <- function(all_features, min_num_texts, directory_path=NULL, make_long = TRUE, learner_ids = NULL) {
-  
-  if (is.null(learner_ids)){
-    
-    # Get students that completed the minimum number of texts at that level
-    learner_ids <- get_learner_ids_by_ntexts_level_with_directory_path(directory_path, min_num_texts)
-  }
+get_feat_count_per_student <- function(all_features, directory_path, make_long = TRUE, learner_ids) {
 
   # define dataframe:
   feat_count_per_student <- data.frame(matrix(ncol = length(all_features), nrow = length(learner_ids)))
-  print(length(learner_ids))
+
   rownames(feat_count_per_student) <- learner_ids
   colnames(feat_count_per_student) <- all_features
   # make all NANs 0
@@ -620,87 +610,39 @@ get_feat_count_per_student <- function(all_features, min_num_texts, directory_pa
     for (file_path in file_list) {
       # Get the features in the file:
       csv_file <- read.csv(file_path)
-      
+
       # Get the frequency of all features found in the text
       frequencies <- table(csv_file$constructID)
-      
+
       for (feature in names(frequencies)) {
         feat_count_per_student[id, feature] <- feat_count_per_student[id, feature] + frequencies[[feature]]
       }
-    }    
+    }
   }
-  
+
   print("finished looping")
-  
+
   if (make_long){
     feat_count_per_student$learnerID <- rownames(feat_count_per_student)
     feat_count_per_student <- make_long_feats_df(feat_count_per_student, "learnerID", "total")
   }
   return(feat_count_per_student)
-  
-}
 
+} 
 
-new_get_feat_count_per_student <-  function(all_features, n, directory_path=NULL, make_long=TRUE, learner_ids = NULL) {
-    
-    # This part is only to make it backwards-compatible
-    if (is.null(learner_ids)){
-      
-      # Get students that completed the minimum number of texts at that level
-      learner_ids <- get_learner_ids_by_ntexts_level_with_directory_path(directory_path, min_num_texts)
-    }
-    
-    # define dataframe:
-    feat_count_per_student <- data.frame(matrix(ncol = length(all_features), nrow = length(learner_ids)))
-    print(length(learner_ids))
-    rownames(feat_count_per_student) <- learner_ids
-    colnames(feat_count_per_student) <- all_features
-    # make all NANs 0
-    feat_count_per_student[] <- 0
-    
-    for (id in learner_ids) {
-      
-      
-      # get all files by student at that level
-      file_list <- list.files(directory_path, pattern = paste0("learner", id,"\\.csv$"), full.names = TRUE, recursive = TRUE)
-      print(paste("File list length for learner", id, ": ", length(file_list)))
-      for (file_path in file_list) {
-        # Get the features in the file:
-        csv_file <- read.csv(file_path)
-        
-        # Get the frequency of all features found in the text
-        frequencies <- table(csv_file$constructID)
-        
-        for (feature in names(frequencies)) {
-          feat_count_per_student[id, feature] <- feat_count_per_student[id, feature] + frequencies[[feature]]
-        }
-      }    
-    }
-    
-    print("finished looping")
-    
-    if (make_long){
-      feat_count_per_student$learnerID <- rownames(feat_count_per_student)
-      feat_count_per_student <- make_long_feats_df(feat_count_per_student, "learnerID", "total")
-    }
-    return(feat_count_per_student)
-    
-  }
+# get_learner_ids_by_ntexts_level_with_directory_path <- function(directory_path, min_num_texts) {
+#   file_list <- list.files(directory_path, pattern = paste0("\\.csv$"), full.names = TRUE, recursive = TRUE)
+#   # Get only the <learnerID> part
+#   match_indices <- regexpr("learner\\d+", file_list)
+#   learner_ids <- regmatches(file_list, match_indices) # at this point we have "learner<ID>"
+#   # Extract number to get the learner IDs on their own
+#   match_indices <- regexpr("\\d+", learner_ids)
+#   learner_ids <- regmatches(learner_ids, match_indices)
   
-
-get_learner_ids_by_ntexts_level_with_directory_path <- function(directory_path, min_num_texts) {
-  file_list <- list.files(directory_path, pattern = paste0("\\.csv$"), full.names = TRUE, recursive = TRUE)
-  # Get only the <learnerID> part
-  match_indices <- regexpr("learner\\d+", file_list)
-  learner_ids <- regmatches(file_list, match_indices) # at this point we have "learner<ID>"
-  # Extract number to get the learner IDs on their own
-  match_indices <- regexpr("\\d+", learner_ids)
-  learner_ids <- regmatches(learner_ids, match_indices)
-  
-  freqs <- as.data.frame(table(learner_ids))
-  learner_ids <- freqs[freqs$Freq >= min_num_texts ,]$learner_ids
-  return(learner_ids)
-}
+#   freqs <- as.data.frame(table(learner_ids))
+#   learner_ids <- freqs[freqs$Freq >= min_num_texts ,]$learner_ids
+#   return(learner_ids)
+# }
 
 get_language_frequencies <- function(directory_path) {
   # Get the language from the output file names
@@ -717,12 +659,12 @@ get_language_frequencies <- function(directory_path) {
 #-------------------------PLOTS--------------------------
 #--------------------------------------------------------
 # Make the boxplot by grouping different feature levels - optional vector for ylim
-make_boxpolot_group <- function(df, ylim_vector=NULL){
-  ggplot(df, aes(x=level, y=total, fill=feat_level))+
-    geom_boxplot(notch = TRUE)+
-    labs(fill="Feature level", x="Text level", y="Percentage of presence")+
-    coord_cartesian(ylim = ylim_vector)
-}
+# make_boxpolot_group <- function(df, ylim_vector=NULL){
+#   ggplot(df, aes(x=level, y=total, fill=feat_level))+
+#     geom_boxplot(notch = TRUE)+
+#     labs(fill="Feature level", x="Text level", y="Percentage of presence")+
+#     coord_cartesian(ylim = ylim_vector)
+# }
 
 
 get_boxplot_construct <- function(df, constr_id, title = NULL) {
@@ -839,23 +781,23 @@ fillFirstSignPrediction <- function(pvals_df, predict_df) {
 }
 
 # Fills in the min_p_pred column of the prediction dataframe in with the level prediction. 
-fillLowestPvalPrediction <- function(pvals_df, predict_df){
-  for (r in 1:nrow(pvals_df)){
-    if (any(!is.na(pvals_df[r, 2:6 ]))){
-      # get the name of the column with the minimum p-val
-      column_name <- names(pvals_df)[apply(pvals_df[r, 1:6], 1, which.min)]
-      predicted_level <- str_split_i(column_name, "_", 2)
-      print(predicted_level)
-      print(r)
-      print(predict_df)
-      predict_df[r, "min_p_pred"] <- predicted_level
-    }
+# fillLowestPvalPrediction <- function(pvals_df, predict_df){
+#   for (r in 1:nrow(pvals_df)){
+#     if (any(!is.na(pvals_df[r, 2:6 ]))){
+#       # get the name of the column with the minimum p-val
+#       column_name <- names(pvals_df)[apply(pvals_df[r, 1:6], 1, which.min)]
+#       predicted_level <- str_split_i(column_name, "_", 2)
+#       print(predicted_level)
+#       print(r)
+#       print(predict_df)
+#       predict_df[r, "min_p_pred"] <- predicted_level
+#     }
     
-  }
+#   }
   
-  return(predict_df)
+#   return(predict_df)
   
-}
+# }
 
 get_exact_precision_recall_f1 <- function(actual, predicted) {
   if (length(actual) != length(predicted)) {
@@ -1019,7 +961,3 @@ is_neighbor_level <- function(actual_level, predicted_level){
 get_text_author_df <- function(ef_dataframe, learner_ids, level) {
   return (ef_dataframe[ef_dataframe$cefr_level == level & ef_dataframe$learnerID %in% learner_ids, c("id", "learnerID")])
 }
-
-
-  
-
