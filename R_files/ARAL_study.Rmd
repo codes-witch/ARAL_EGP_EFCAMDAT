@@ -19,6 +19,7 @@ library(tidyr)
 library(tools)
 library(knitr)
 library("tidytext")
+library("tokenizers")
 load("/home/daniela/Documents/ARAL_EGP_EFCAMDAT/R_files/ef2_20181231.RData")
 all_features <- readLines("all_features.txt")
 opts_chunk$set(cache = TRUE)
@@ -73,19 +74,19 @@ list_students_finsihed <- list()
 
 for (cur_cefr_lvl in names(cefr_ef_lvls)) {
   # Minimum number of texts the learner should have completed in the subset that will be taken into account
-  min_n_texts <- 6 #(only top 3 and highest and lowest units in the level)
+  min_n_texts <- 6 # (only top 3 and highest and lowest units in the level)
 
   if (cur_cefr_lvl == "A1") {
     min_n_texts <- 9 # top 6 lowest + top 3 highest
   } else if (cur_cefr_lvl == "C2") {
-    min_n_texts  <- 3 # top 3 lowest
+    min_n_texts <- 3 # top 3 lowest
   }
 
   learners_finished <- ef2_prepared %>%
     filter(cefr_level == cur_cefr_lvl & !is.na(combined_cefr)) %>% # current cefr level top high/low units
     group_by(learnerID) %>%
-    summarise(units_count = n_distinct(ef_level, unit)) %>% # number of unique ef_level-unit pairs each learner has completed 
-    filter(units_count == min_n_texts) %>% # only those that have completed all units at least once 
+    summarise(units_count = n_distinct(ef_level, unit)) %>% # number of unique ef_level-unit pairs each learner has completed
+    filter(units_count == min_n_texts) %>% # only those that have completed all units at least once
     pull(learnerID)
 
   list_students_finsihed[[cur_cefr_lvl]] <- learners_finished
@@ -117,7 +118,7 @@ for (level in names(cefr_ef_lvls)) {
 }
 
 # To check that the sampling is deterministic, run this line several times and check the learnerIDs
-#sapply(sampled_learners, function(x) sort(unique(x)))
+# sapply(sampled_learners, function(x) sort(unique(x)))
 ```
 
 Students have been sampled. Now, we need to extract their texts and put them in .txt files to be analyzed by the python script.
@@ -142,27 +143,34 @@ Now, we run the Python script and wait. It will take a while.
 Once the scripts have been annotated, we need to count how many times each student at the individual CEFR levels have used each construct.
 
 ```{r}
-#For getting the output path dynamically given the level
-# file_format can be txt or csv 
+# For getting the output path dynamically given the level
+# file_format can be txt or csv
 get_output_path <- function(combined_lvl, file_format = "csv") {
   # NOTE change the output path if needed
-  return(paste0("../text_annotation/data/output_15Nov24/", combined_lvl, "/", file_format, "/")) 
+  return(paste0("../text_annotation/data/output_15Nov24/", combined_lvl, "/", file_format, "/"))
+}
+
+get_learner_ids_by_lvl <- function(combined_lvl) {
+  last_lvl <- str_split_i(combined_lvl, "_", 2) # high level in the combination
+  first_lvl <- str_split_i(combined_lvl, "_", 1)
+  if (last_lvl == "A1") { # If it's A0_A1, all learners are from A1
+    learner_ids <- sampled_learners[["A1"]]
+  } else { # get learners from the last level and the first one
+    learner_ids <- sort(unique(append(sampled_learners[[first_lvl]], sampled_learners[[last_lvl]])))
+  }
 }
 
 # Calls the get_feat_count_per_student with the necessary parameters given the level combination
 count_constrs_by_lvl <- function(combined_lvl, make_long = TRUE) {
-  last_lvl <- str_split_i(combined_lvl, "_", 2) # high level in the combination
-  first_lvl <- str_split_i(combined_lvl, "_", 1)
-  if (last_lvl == "A1") {  # If it's A0_A1, all learners are from A1
-    learner_ids <- sampled_learners[["A1"]]
-  } else { # get learners from the last level and the first one
-    learner_ids <- unique(append(sampled_learners[[first_lvl]], sampled_learners[[last_lvl]]))
-  }
+  learner_ids <- get_learner_ids_by_lvl(combined_lvl)
 
-  return(get_feat_count_per_student(get_output_path(combined_lvl),
-                                    learner_ids = learner_ids,
-                                    make_long = make_long))
+  return(get_feat_count_per_student(directory_path = get_output_path(combined_lvl),
+    learner_ids = learner_ids,
+    make_long = make_long
+  ))
 }
+
+# learner_wc_by_level <- 
 
 # These dfs contain the feature counts for all learners at each combined level
 a0a1_feat_counts <- count_constrs_by_lvl("A0_A1")
@@ -173,10 +181,13 @@ b2c1_feat_counts <- count_constrs_by_lvl("B2_C1")
 c1c2_feat_counts <- count_constrs_by_lvl("C1_C2")
 ```
 
-Now it is necessary to normalize these counts by number of words written by each individual student in the respective (combined) levels
+Now it is necessary to normalize these counts by number of words written by each individual student in the respective (combined) levels and normalize it by 100 words
 
 ```{r}
-count_words_per_learner_at_level <- function(combined_level){
-
-}
+a0a1_word_counts <- get_learner_word_count_df(get_learner_ids_by_lvl("A0_A1"), get_output_path("A0_A1", "text"))
+a1a2_word_counts <- get_learner_word_count_df(get_learner_ids_by_lvl("A1_A2"), get_output_path("A1_A2", "text"))
+a2b1_word_counts <- get_learner_word_count_df(get_learner_ids_by_lvl("A2_B1"), get_output_path("A2_B1", "text"))
+b1b2_word_counts <- get_learner_word_count_df(get_learner_ids_by_lvl("B1_B2"), get_output_path("B1_B2", "text"))
+b2c1_word_counts <- get_learner_word_count_df(get_learner_ids_by_lvl("B2_C1"), get_output_path("B2_C1", "text"))
+c1c2_word_counts <- get_learner_word_count_df(get_learner_ids_by_lvl("C1_C2"), get_output_path("C1_C2", "text"))
 ```

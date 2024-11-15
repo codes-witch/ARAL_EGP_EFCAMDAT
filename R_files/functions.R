@@ -255,7 +255,6 @@ add_feature_level <- function(dataframe){
 # -------------------------------------------------------------------
 # Function to count words in all text files in a directory
 count_words_in_directory <- function(directory_path, pattern=NULL) {
-  
   if (is.null(pattern)){
     pattern <- "\\.txt$"
   }
@@ -270,7 +269,6 @@ count_words_in_directory <- function(directory_path, pattern=NULL) {
     text <- paste(text, collapse = " ")
     # Count words in the text
     word_count <- tokenizers::count_words(text)
-    print(text)
     total_word_count <- total_word_count + word_count
   }
   return(total_word_count)
