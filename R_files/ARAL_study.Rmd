@@ -82,7 +82,7 @@ for (cur_cefr_lvl in names(cefr_ef_lvls)) {
   }
 
   learners_finished <- ef2_prepared %>%
-    filter(cefr_level == tolower(cur_cefr_lvl) & !is.na(combined_cefr)) %>% # current cefr level top high/low units
+    filter(cefr_level == cur_cefr_lvl & !is.na(combined_cefr)) %>% # current cefr level top high/low units
     group_by(learnerID) %>%
     summarise(units_count = n_distinct(ef_level, unit)) %>% # number of unique ef_level-unit pairs each learner has completed 
     filter(units_count == min_n_texts) %>% # only those that have completed all units at least once 
@@ -123,17 +123,60 @@ for (level in names(cefr_ef_lvls)) {
 Students have been sampled. Now, we need to extract their texts and put them in .txt files to be analyzed by the python script.
 
 ```{r}
-
 input_path <- "/home/daniela/Documents/ARAL_EGP_EFCAMDAT/text_annotation/data/input_15Nov24/"
 df_filtered_all <- ef2_prepared[0, ]
 
 for (lvl in names(cefr_ef_lvls)) {
   filtered_df <- ef2_prepared %>%
-    filter(cefr_level == tolower(lvl) & learnerID %in% sampled_learners[[lvl]] & !is.na(combined_cefr))
+    filter(cefr_level == lvl & learnerID %in% sampled_learners[[lvl]] & !is.na(combined_cefr))
 
   df_filtered_all <- rbind(df_filtered_all, filtered_df)
 }
 
 # Put the texts into .txt files
 ef_text_2_txt(df_filtered_all, input_path)
+```
+
+Now, we run the Python script and wait. It will take a while. 
+
+Once the scripts have been annotated, we need to count how many times each student at the individual CEFR levels have used each construct.
+
+```{r}
+#For getting the output path dynamically given the level
+# file_format can be txt or csv 
+get_output_path <- function(combined_lvl, file_format = "csv") {
+  # NOTE change the output path if needed
+  return(paste0("../text_annotation/data/output_15Nov24/", combined_lvl, "/", file_format, "/")) 
+}
+
+# Calls the get_feat_count_per_student with the necessary parameters given the level combination
+count_constrs_by_lvl <- function(combined_lvl, make_long = TRUE) {
+  last_lvl <- str_split_i(combined_lvl, "_", 2) # high level in the combination
+  first_lvl <- str_split_i(combined_lvl, "_", 1)
+  if (last_lvl == "A1") {  # If it's A0_A1, all learners are from A1
+    learner_ids <- sampled_learners[["A1"]]
+  } else { # get learners from the last level and the first one
+    learner_ids <- unique(append(sampled_learners[[first_lvl]], sampled_learners[[last_lvl]]))
+  }
+
+  return(get_feat_count_per_student(get_output_path(combined_lvl),
+                                    learner_ids = learner_ids,
+                                    make_long = make_long))
+}
+
+# These dfs contain the feature counts for all learners at each combined level
+a0a1_feat_counts <- count_constrs_by_lvl("A0_A1")
+a1a2_feat_counts <- count_constrs_by_lvl("A1_A2")
+a2b1_feat_counts <- count_constrs_by_lvl("A2_B1")
+b1b2_feat_counts <- count_constrs_by_lvl("B1_B2")
+b2c1_feat_counts <- count_constrs_by_lvl("B2_C1")
+c1c2_feat_counts <- count_constrs_by_lvl("C1_C2")
+```
+
+Now it is necessary to normalize these counts by number of words written by each individual student in the respective (combined) levels
+
+```{r}
+count_words_per_learner_at_level <- function(combined_level){
+
+}
 ```

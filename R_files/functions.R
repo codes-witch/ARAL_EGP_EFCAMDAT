@@ -253,19 +253,6 @@ add_feature_level <- function(dataframe){
 # -------------------------------------------------------------------
 # ------------------------------ COUNTS------------------------------
 # -------------------------------------------------------------------
-
-# Function to count words in a text
-# count_words <- function(text) {
-#   # Use regular expressions to split text into words at both whitespace and punctuation boundaries
-#   words <- str_split(text, "[\\s.,!?;:]+|(?<=[.,!?:;])(?=\\w)", simplify = TRUE)
-#   # Filter out empty strings
-#   words <- words[words != ""]
-#   # Print the words (optional)
-#   print(words)
-#   print(length(words))
-#   return(length(words))
-# }
-
 # Function to count words in all text files in a directory
 count_words_in_directory <- function(directory_path, pattern=NULL) {
   
