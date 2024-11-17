@@ -292,6 +292,15 @@ get_learner_word_count_df <- function(learner_ids, directory_path){
   return (learner_wc)
 }
 
+# For getting the frequency per hundred words with which each student used a construct
+get_feats_normalized_students <- function(feat_count_df, word_count_df, make_long = TRUE) {
+  short_normalized <- feat_count_df / word_count_df$word_count * 100
+
+  if (make_long) {
+    make_long_feats_df(cbind("learnerID" = rownames(feat_count_df), short_normalized), exclude_col = "learnerID", "total")
+  }
+}
+
 # # Use this for calculating the percentages
 # count_texts_per_unit <- function(directory_path) {
 #   file_list <- list.files(directory_path, recursive = TRUE, pattern = "\\.txt$")

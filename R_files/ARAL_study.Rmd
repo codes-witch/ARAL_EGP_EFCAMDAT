@@ -127,6 +127,7 @@ Students have been sampled. Now, we need to extract their texts and put them in 
 input_path <- "/home/daniela/Documents/ARAL_EGP_EFCAMDAT/text_annotation/data/input_15Nov24/"
 df_filtered_all <- ef2_prepared[0, ]
 
+# make dataframe with the learners that we want at each level
 for (lvl in names(cefr_ef_lvls)) {
   filtered_df <- ef2_prepared %>%
     filter(cefr_level == lvl & learnerID %in% sampled_learners[[lvl]] & !is.na(combined_cefr))
@@ -135,7 +136,7 @@ for (lvl in names(cefr_ef_lvls)) {
 }
 
 # Put the texts into .txt files
-ef_text_2_txt(df_filtered_all, input_path)
+# ef_text_2_txt(df_filtered_all, input_path)
 ```
 
 Now, we run the Python script and wait. It will take a while. 
@@ -173,12 +174,12 @@ count_constrs_by_lvl <- function(combined_lvl, make_long = TRUE) {
 # learner_wc_by_level <- 
 
 # These dfs contain the feature counts for all learners at each combined level
-a0a1_feat_counts <- count_constrs_by_lvl("A0_A1")
-a1a2_feat_counts <- count_constrs_by_lvl("A1_A2")
-a2b1_feat_counts <- count_constrs_by_lvl("A2_B1")
-b1b2_feat_counts <- count_constrs_by_lvl("B1_B2")
-b2c1_feat_counts <- count_constrs_by_lvl("B2_C1")
-c1c2_feat_counts <- count_constrs_by_lvl("C1_C2")
+a0a1_feat_counts <- count_constrs_by_lvl("A0_A1", make_long = FALSE)
+a1a2_feat_counts <- count_constrs_by_lvl("A1_A2", make_long = FALSE)
+a2b1_feat_counts <- count_constrs_by_lvl("A2_B1", make_long = FALSE)
+b1b2_feat_counts <- count_constrs_by_lvl("B1_B2", make_long = FALSE)
+b2c1_feat_counts <- count_constrs_by_lvl("B2_C1", make_long = FALSE)
+c1c2_feat_counts <- count_constrs_by_lvl("C1_C2", make_long = FALSE)
 ```
 
 Now it is necessary to normalize these counts by number of words written by each individual student in the respective (combined) levels and normalize it by 100 words
@@ -190,4 +191,14 @@ a2b1_word_counts <- get_learner_word_count_df(get_learner_ids_by_lvl("A2_B1"), g
 b1b2_word_counts <- get_learner_word_count_df(get_learner_ids_by_lvl("B1_B2"), get_output_path("B1_B2", "text"))
 b2c1_word_counts <- get_learner_word_count_df(get_learner_ids_by_lvl("B2_C1"), get_output_path("B2_C1", "text"))
 c1c2_word_counts <- get_learner_word_count_df(get_learner_ids_by_lvl("C1_C2"), get_output_path("C1_C2", "text"))
+
+
+a0a1_normalized <- get_feats_normalized_students(a0a1_feat_counts, a0a1_word_counts)
+a1a2_normalized <- get_feats_normalized_students(a1a2_feat_counts, a1a2_word_counts)
+a2b1_normalized <- get_feats_normalized_students(a2b1_feat_counts, a2b1_word_counts)
+b1b2_normalized <- get_feats_normalized_students(b1b2_feat_counts, b1b2_word_counts)
+b2c1_normalized <- get_feats_normalized_students(b2c1_feat_counts, b2c1_word_counts)
+c1c2_normalized <- get_feats_normalized_students(c1c2_feat_counts, c1c2_word_counts)
 ```
+
+Now we know the normalized frequency of each costruct for the students at each level combination. 
