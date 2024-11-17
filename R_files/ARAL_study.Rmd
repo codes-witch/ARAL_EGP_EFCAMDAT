@@ -193,12 +193,37 @@ b2c1_word_counts <- get_learner_word_count_df(get_learner_ids_by_lvl("B2_C1"), g
 c1c2_word_counts <- get_learner_word_count_df(get_learner_ids_by_lvl("C1_C2"), get_output_path("C1_C2", "text"))
 
 
-a0a1_normalized <- get_feats_normalized_students(a0a1_feat_counts, a0a1_word_counts)
-a1a2_normalized <- get_feats_normalized_students(a1a2_feat_counts, a1a2_word_counts)
-a2b1_normalized <- get_feats_normalized_students(a2b1_feat_counts, a2b1_word_counts)
-b1b2_normalized <- get_feats_normalized_students(b1b2_feat_counts, b1b2_word_counts)
-b2c1_normalized <- get_feats_normalized_students(b2c1_feat_counts, b2c1_word_counts)
-c1c2_normalized <- get_feats_normalized_students(c1c2_feat_counts, c1c2_word_counts)
+a0a1_normalized <- cbind(get_feats_normalized_students(a0a1_feat_counts, a0a1_word_counts), level = "A0_A1")
+a1a2_normalized <- cbind(get_feats_normalized_students(a1a2_feat_counts, a1a2_word_counts), level = "A1_A2")
+a2b1_normalized <- cbind(get_feats_normalized_students(a2b1_feat_counts, a2b1_word_counts), level = "A2_B1")
+b1b2_normalized <- cbind(get_feats_normalized_students(b1b2_feat_counts, b1b2_word_counts), level = "B1_B2")
+b2c1_normalized <- cbind(get_feats_normalized_students(b2c1_feat_counts, b2c1_word_counts), level = "B2_C1")
+c1c2_normalized <- cbind(get_feats_normalized_students(c1c2_feat_counts, c1c2_word_counts), level = "C1_C2")
 ```
 
 Now we know the normalized frequency of each costruct for the students at each level combination. 
+
+
+First, we get rid of all constructs which were not found in any student's writings:
+
+
+```{r}
+# put all dataframes together
+normalized_all_levels <- rbind(a0a1_normalized, a1a2_normalized, a2b1_normalized, b1b2_normalized, b2c1_normalized, c1c2_normalized)
+
+# if there are any NAs, it's because texts by some students could not be processed. Drop these rows
+normalized_all_levels <- normalized_all_levels %>%
+  drop_na()
+
+zero_constructs <- normalized_all_levels %>% 
+  group_by(feature) %>%
+  filter(all(total == 0)) %>%
+  pull(feature) %>%
+  unique()
+
+# remove these zero-constructs from our data
+normalized_all_levels <- normalized_all_levels %>%
+  filter(!feature %in% zero_constructs)
+```
+We can start statistically analyzing the construct frequency distributions per learner. 
+
