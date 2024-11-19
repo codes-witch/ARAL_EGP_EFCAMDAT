@@ -165,13 +165,14 @@ get_learner_ids_by_lvl <- function(combined_lvl) {
 count_constrs_by_lvl <- function(combined_lvl, make_long = TRUE) {
   learner_ids <- get_learner_ids_by_lvl(combined_lvl)
 
-  return(get_feat_count_per_student(directory_path = get_output_path(combined_lvl),
+  return(get_feat_count_per_student(
+    directory_path = get_output_path(combined_lvl),
     learner_ids = learner_ids,
     make_long = make_long
   ))
 }
 
-# learner_wc_by_level <- 
+# learner_wc_by_level <-
 
 # These dfs contain the feature counts for all learners at each combined level
 a0a1_feat_counts <- count_constrs_by_lvl("A0_A1", make_long = FALSE)
@@ -193,19 +194,18 @@ b2c1_word_counts <- get_learner_word_count_df(get_learner_ids_by_lvl("B2_C1"), g
 c1c2_word_counts <- get_learner_word_count_df(get_learner_ids_by_lvl("C1_C2"), get_output_path("C1_C2", "text"))
 
 
-a0a1_normalized <- cbind(get_feats_normalized_students(a0a1_feat_counts, a0a1_word_counts), level = "A0_A1")
-a1a2_normalized <- cbind(get_feats_normalized_students(a1a2_feat_counts, a1a2_word_counts), level = "A1_A2")
-a2b1_normalized <- cbind(get_feats_normalized_students(a2b1_feat_counts, a2b1_word_counts), level = "A2_B1")
-b1b2_normalized <- cbind(get_feats_normalized_students(b1b2_feat_counts, b1b2_word_counts), level = "B1_B2")
-b2c1_normalized <- cbind(get_feats_normalized_students(b2c1_feat_counts, b2c1_word_counts), level = "B2_C1")
-c1c2_normalized <- cbind(get_feats_normalized_students(c1c2_feat_counts, c1c2_word_counts), level = "C1_C2")
+a0a1_normalized <- cbind(get_feats_normalized_students(a0a1_feat_counts, a0a1_word_counts), text_level = "A0_A1")
+a1a2_normalized <- cbind(get_feats_normalized_students(a1a2_feat_counts, a1a2_word_counts), text_level = "A1_A2")
+a2b1_normalized <- cbind(get_feats_normalized_students(a2b1_feat_counts, a2b1_word_counts), text_level = "A2_B1")
+b1b2_normalized <- cbind(get_feats_normalized_students(b1b2_feat_counts, b1b2_word_counts), text_level = "B1_B2")
+b2c1_normalized <- cbind(get_feats_normalized_students(b2c1_feat_counts, b2c1_word_counts), text_level = "B2_C1")
+c1c2_normalized <- cbind(get_feats_normalized_students(c1c2_feat_counts, c1c2_word_counts), text_level = "C1_C2")
 ```
 
 Now we know the normalized frequency of each costruct for the students at each level combination. 
 
 
 First, we get rid of all constructs which were not found in any student's writings:
-
 
 ```{r}
 # put all dataframes together
@@ -215,7 +215,7 @@ normalized_all_levels <- rbind(a0a1_normalized, a1a2_normalized, a2b1_normalized
 normalized_all_levels <- normalized_all_levels %>%
   drop_na()
 
-zero_constructs <- normalized_all_levels %>% 
+zero_constructs <- normalized_all_levels %>%
   group_by(feature) %>%
   filter(all(total == 0)) %>%
   pull(feature) %>%
@@ -225,5 +225,156 @@ zero_constructs <- normalized_all_levels %>%
 normalized_all_levels <- normalized_all_levels %>%
   filter(!feature %in% zero_constructs)
 ```
+
 We can start statistically analyzing the construct frequency distributions per learner. 
 
+```{r}
+# check for normality
+
+library("ggpubr")
+normalized_all_levels %>%
+  pull(total) %>%
+  ggdensity()
+```
+
+We observe that the data is essentialy exponential, with a vast majority of the constructs having close to zero frequecy. 
+Log transforming the data does not reveal a normal distribution either.
+
+
+```{r}
+# Log-transform and visualize
+library("ggpubr")
+normalized_all_levels %>%
+  pull(total) %>%
+  log() %>%
+  ggdensity()
+```
+
+It is therefore wise to use non-parametric tests.
+
+First, we will apply the Kruskal-Wallis test to identify any constructs that do not vary significantly across proficiency levels.
+
+
+```{r}
+constructs <- unique(normalized_all_levels$feature)
+kw_results <- list()  # mapping between 
+kw_non_sign_constructs <- c()
+kw_sign_constructs <- c()
+kw_nan_results_constructs <- c()
+
+for (constr in constructs) {
+  # df with only the current construct. Check whether there are no occurrences of the feature.
+  feature_dataframe <- normalized_all_levels %>%
+    filter(feature == constr)
+
+  # Fill in kw result list
+  kw_results[[constr]] <- normalized_all_levels %>%
+    filter(feature == constr) %>%
+    kruskal.test(total ~ text_level, data = .)
+
+  p_value <- kw_results[[constr]]$p.value
+
+  if (is.nan(p_value)) { # sanity check: kw_nan_results_constructs will remain empty because we are discarding all features with no occurrences
+    kw_nan_results_constructs <- append(kw_nan_results_constructs, constr)
+  } else if (p_value > 0.05) {
+    kw_non_sign_constructs <- append(kw_non_sign_constructs, constr)
+  } else {
+    kw_sign_constructs <- append(kw_sign_constructs, constr)
+  }
+}
+```
+
+A total of 143 constructs do not show significant differences across levels.
+```{r}
+length(kw_non_sign_constructs)
+
+kw_non_sign_constructs <- data.frame(feature = kw_non_sign_constructs) %>%
+  add_feature_level()
+
+# Add the level that the EGP assigns to these constructs
+View(kw_non_sign_constructs)
+```
+
+
+TODO Sample 2 from each level and try and find them?
+
+
+```{r}
+# For all significant features,  do Wilcoxon Rank Sum tests to check for significant differences between the current level and the previous one. 
+levels <- c("A0_A1", "A1_A2", "A2_B1", "B1_B2", "B2_C1", "C1_C2")
+
+# store p-values from wilcoxon tests
+wcx_1side_pvals <- data.frame(matrix(ncol = 6, nrow = length(kw_sign_constructs)))
+names(wcx_1side_pvals) <- c("feature", "A1", "A2", "B1", "B2", "C1")
+
+# For all relevant constructs, do a wilcoxon-test between all consecutive levels
+for (f in 1:length(kw_sign_constructs)) {
+  constr <- kw_sign_constructs[f]
+  # build the rows for the p-values column by column
+  wcx_1side_pvals_vec <- c()
+
+  for (i in 1:(length(levels) - 1)){
+    level1 <- levels[i]
+    level2 <- levels[i + 1]
+    print(paste0("Construct: ", constr))
+
+    appears_in_lev1 <- sum(filter(normalized_all_levels, text_level == level1, feature == constr)$total) > 0
+    appears_in_lev2 <- sum(filter(normalized_all_levels, text_level == level2, feature == constr)$total) > 0
+
+    # Check that the current feature appears in the level before and in the current level
+    if (!appears_in_lev1 || !appears_in_lev2) {
+      if (!appears_in_lev1 && !appears_in_lev2) {
+        print(paste0("Contsruct ", constr, " does not appear in any texts written by ", level1, " or ", level2, " students"))
+      } else if (!appears_in_lev1) {
+        print(paste0("Contsruct ", constr, " does not appear in any texts written by ", level1, " students"))
+      } else if (!appears_in_lev2) {
+        print(paste0("Contsruct ", constr, " does not appear in any texts written by ", level2, " students"))
+      }
+
+      wcx_1side_pvals_vec <- append(wcx_1side_pvals_vec, NA)
+
+    } else { # It must appear in BOTH levels to be compared
+      wcx_1side_result <- normalized_all_levels %>%
+        filter(feature == constr, text_level %in% c(level1, level2)) %>%
+        wilcox.test(total ~ text_level, data = ., alternative = "less")
+
+      if (wcx_1side_result$p.value <= 0.05) {
+        wcx_1side_pvals_vec <- append(wcx_1side_pvals_vec, wcx_1side_result$p.value)
+      } else {
+        wcx_1side_pvals_vec <- append(wcx_1side_pvals_vec, NA)
+      }
+    }
+  }
+
+  constr_1side_pval_row <- append(as.character(constr), wcx_1side_pvals_vec)
+
+  wcx_1side_pvals[f, ] <- constr_1side_pval_row
+
+}
+```
+
+
+Based on the truth values, we predict the level of acquisition
+```{r}
+wcx_1side_level_predict <-  data.frame(feature = kw_sign_constructs) %>%
+  add_feature_level() %>%
+  rename(EGP_level = feat_level) %>%
+  rename(construct = feature) %>%
+  mutate(first_sign_p_pred = NA, signif_at_EGP_level = NA)
+# Find first significant diff
+wcx_1side_level_predict <- fill_first_signif_pred(wcx_1side_pvals, wcx_1side_level_predict)
+
+# fill in TRUE FALSE, is there a significant difference at the level the EGP says?
+wcx_1side_level_predict <- fill_is_sig_at_lvl(wcx_1side_pvals, wcx_1side_level_predict)
+```
+
+
+```{r}
+View(wcx_1side_level_predict)
+```
+
+```{r}
+```
+
+```{r}
+```

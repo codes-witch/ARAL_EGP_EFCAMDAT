@@ -729,24 +729,24 @@ get_lineplot <- function(df, constr_id, title = NULL, ylim_vector=NULL) {
 
 # For getting a dataframe with features of only one level
 get_level_feats <- function(level, dataframe_long){
-  level = tolower(level)
+  level <- tolower(level)
   dataframe_long$feature <- as.numeric(dataframe_long$feature)
-  if (level == "a1"){
+  if (level == "a1") {
     level_df <- dataframe_long[dataframe_long$feature <= 109,]
   } else if (level == "a2") {
-    level_df <- dataframe_long[dataframe_long$feature >= 110 & dataframe_long$feature <=397,]
+    level_df <- dataframe_long[dataframe_long$feature >= 110 & dataframe_long$feature <= 397, ]
   } else if (level == "b1") {
-    level_df <- dataframe_long[dataframe_long$feature >= 401 & dataframe_long$feature <=734,]
-  } else if (level == "b2"){
-    level_df <- dataframe_long[dataframe_long$feature >= 739 & dataframe_long$feature <=977,]
+    level_df <- dataframe_long[dataframe_long$feature >= 401 & dataframe_long$feature <= 734, ]
+  } else if (level == "b2") {
+    level_df <- dataframe_long[dataframe_long$feature >= 739 & dataframe_long$feature <= 977, ]
   } else if (level == "c1") {
-    level_df <- dataframe_long[dataframe_long$feature >= 982 & dataframe_long$feature <=1105,]
+    level_df <- dataframe_long[dataframe_long$feature >= 982 & dataframe_long$feature <= 1105, ]
   } else if (level == "c2") {
     level_df <- dataframe_long[dataframe_long$feature >= 1111,]
   } else {
     print("INVALID LEVEL!")
   }
-  
+
   return(level_df)
 }
 
@@ -754,94 +754,78 @@ get_level_feats <- function(level, dataframe_long){
 # ------------ CONSTRUCT-LEVEL ASSIGNMENT ------------
 # ----------------------------------------------------
 
-# Fills in the first_sign_p_pred column of the prediction dataframe in with the level prediction. 
-fillFirstSignPrediction <- function(pvals_df, predict_df) {
-  for (r in 1:nrow(pvals_df)){
+# Fills in the first_sign_p_pred column of the prediction dataframe in with the level prediction.
+fill_first_signif_pred <- function(pvals_df, predict_df) {
+
+  for (r in 1:nrow(pvals_df)) {
+
     print(pvals_df[r, 1])
-    for (c in 2:6){
-      if(!is.na(pvals_df[r, c])){
+    for (c in 2:6){ # For each column in the p values for each level
+      if (!is.na(pvals_df[r, c])) { # only if the comparison in the tests was successful (if )
         print(pvals_df[r, c])
-        predict_df$first_sign_p_pred[r] <- str_split_i(colnames(pvals_df)[c], "_", 2)
+        predict_df$first_sign_p_pred[r] <- colnames(pvals_df)[c] # Predicted the name of the level
         break
       }
     }
   }
-  
+
   return(predict_df)
 }
 
-# Fills in the min_p_pred column of the prediction dataframe in with the level prediction. 
-# fillLowestPvalPrediction <- function(pvals_df, predict_df){
-#   for (r in 1:nrow(pvals_df)){
-#     if (any(!is.na(pvals_df[r, 2:6 ]))){
-#       # get the name of the column with the minimum p-val
-#       column_name <- names(pvals_df)[apply(pvals_df[r, 1:6], 1, which.min)]
-#       predicted_level <- str_split_i(column_name, "_", 2)
-#       print(predicted_level)
-#       print(r)
-#       print(predict_df)
-#       predict_df[r, "min_p_pred"] <- predicted_level
-#     }
-    
-#   }
-  
-#   return(predict_df)
-  
-# }
 
 get_exact_precision_recall_f1 <- function(actual, predicted) {
   if (length(actual) != length(predicted)) {
     print("Actual and predicted must be same length")
   }
-  
+
   cefr_levels <- c("A2", "B1", "B2", "C1", "C2")
   result <- data.frame(level = cefr_levels, precision = rep(NA, 5), recall = rep(NA, 5), f1 = rep(NA, 5))
-  
+
   total_tp <- 0
   total_fp <- 0
   total_fn <- 0
   for (l in cefr_levels) {
-    tp = 0
-    fp = 0
-    fn = 0
-    
+    tp <- 0
+    fp <- 0
+    fn <- 0
+
     for (i in 1:length(actual)) {
-      if(actual[i] == l && predicted[i] == l) {
-        # print("New TP")
+      if (actual[i] == l && predicted[i] == l) {
+        # "New TP"
         tp <- tp + 1
         total_tp <- total_tp + tp
       } else if (actual[i] == l) {
-        # print("New FN")
+        # "New FN"
         fn <- fn + 1
         total_fn <- total_fn + fn
       } else if (predicted[i] == l) {
-        # print("New FP")
+        # "New FP"
         fp <- fp +1
         total_fp <- total_fp + fp
       }
     }
     precision <- NA
     recall <- NA
-    
+
     if (fp + tp != 0){
       precision <- tp / (fp + tp)
       result$precision[result$level == l] <- precision
-    } 
-    
+    }
+
     if (tp + fn != 0) {
       recall <- tp / (fn + tp)
       result$recall[result$level == l] <- recall
-    } 
-    
-    
+    }
+
+
     if (!is.na(precision) && !is.na(recall)) {
       f1 <- 2 * (precision * recall) / (precision + recall)
       result$f1[result$level == l] <- f1
     }
   }
-  
-  macro_avg <- data.frame(precision = mean(result$precision, na.rm=TRUE), recall = mean(result$recall, na.rm=TRUE), f1 = mean(result$f1, na.rm=TRUE) )
-  micro_avg <- data.frame(precision = total_tp/(total_tp + total_fp), recall = total_tp / (total_tp + total_fn), f1 = total_tp/(total_tp + ((total_fn + total_fp)/2)))
+
+  macro_avg <- data.frame(precision = mean(result$precision, na.rm = TRUE), recall = mean(result$recall, na.rm = TRUE), f1 = mean(result$f1, na.rm=TRUE) )
+  micro_avg <- data.frame(precision = total_tp / (total_tp + total_fp), recall = total_tp / (total_tp + total_fn), f1 = total_tp / (total_tp + ((total_fn + total_fp)/2)))
   return(list("result" = result, "macro_avg" = macro_avg, "micro_avg" = micro_avg))
 }
 
@@ -903,17 +887,16 @@ get_neighbors_precision_recall_f1 <- function(actual, predicted) {
 
 
 # fill with TRUE or FALSE, whether the construct is significant at the level it belongs to in the EGP
-fillIsSigAtEgpLvl <- function(pval_df, predict_df) {
+fill_is_sig_at_lvl <- function(pval_df, predict_df) {
   pval_df <- add_feature_level(pval_df)
   #iterate through the columns, get the second level. If it's the same as feat_level, then TRUE in the prediction df
   for (row_idx in 1:nrow(pval_df)) {
     # get the feature of the row:
     constr_lvl <- pval_df$feat_level[row_idx]
     
-    # find the column where the second level is that of the construct
+    # find the column where the level is that of the construct
     for (col_idx in 2:6) {
-      colname <- colnames(pval_df)[col_idx]
-      col_second_lvl <- str_split_i(colname, "_", 2)
+      col_second_lvl <- colnames(pval_df)[col_idx]
       
       if (col_second_lvl == constr_lvl) {
         predict_df[row_idx, "signif_at_EGP_level"] <- !is.na(pval_df[row_idx, col_idx])
