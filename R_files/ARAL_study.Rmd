@@ -25,17 +25,7 @@ all_features <- readLines("all_features.txt")
 opts_chunk$set(cache = TRUE)
 ```
 
-First, I we get rid of all texts that have not achieved the passing grade of X (TODO)
-```{r}
-# passing_grade <- 80 #TODO change?
-
-# head(ef2)
-# ef2_filtered <- ef2[ef2$grade >= passing_grade, ]
-
-# nrow(ef2)
-```
-
-We are left with 832810 texts. Now, we add a column with the CEFR level that each text should belong to based on the EFCAMDAT level
+First, we add a column with the CEFR level that each text should belong to based on the EFCAMDAT level
 
 ```{r}
 # rename the "level" column (which is at index 2)
@@ -50,14 +40,15 @@ ef2_prepared <- add_cefr_from_ef_levels(ef2)
 ef2_prepared <- add_combined_level(ef2_prepared)
 ```
 
-Now, get the learnerIDs of people who have finished their respective CEFR levels
+Now, get the learnerIDs of people for whome we have all necessary units. Generally, these are the first three and last three of their respective CEFR level. 
+In the case of A1, They need to have the first six units and the last three units. In the case of C2, they need only the first three units.
 
 ```{r}
 # Get those students that completed each level
 # (except C2, for which we only need the students who completed the first three units)
 
 
-cefr_ef_lvls <- list(
+cefr_ef_lvls <- list( # These are the EFCamDat levels that correspond to each CEFR level
   "A1" = c(1:3),
   "A2" = c(4:6),
   "B1" = c(7:9),
@@ -73,7 +64,7 @@ list_students_finsihed <- list()
 
 
 for (cur_cefr_lvl in names(cefr_ef_lvls)) {
-  # Minimum number of texts the learner should have completed in the subset that will be taken into account
+  # Minimum number of texts that the learner should have completed within the subset that will be taken into account
   min_n_texts <- 6 # (only top 3 and highest and lowest units in the level)
 
   if (cur_cefr_lvl == "A1") {
@@ -99,6 +90,8 @@ for (lvl in names(list_students_finsihed)) {
 
 # 49 is the minimum number of students having finished a level (C1)
 min_num_students <- min(sapply(list_students_finsihed, length))
+
+print(min_num_students)
 ```
 
 We now know that in order to have a balanced sample, we can have at most 49 students of any given level in the combined CEFR levels.
@@ -112,7 +105,7 @@ Now, we must sample the students and extract their texts to be analyzed by the P
 
 ```{r}
 sampled_learners <- list()
-set.seed(123)
+set.seed(1234)
 for (level in names(cefr_ef_lvls)) {
   sampled_learners[[level]] <- sample(list_students_finsihed[[level]], min_num_students, replace = FALSE)
 }
@@ -124,7 +117,7 @@ for (level in names(cefr_ef_lvls)) {
 Students have been sampled. Now, we need to extract their texts and put them in .txt files to be analyzed by the python script.
 
 ```{r}
-input_path <- "/home/daniela/Documents/ARAL_EGP_EFCAMDAT/text_annotation/data/input_15Nov24/"
+input_path <- "/home/daniela/Documents/ARAL_EGP_EFCAMDAT/text_annotation/data/input_21Nov24/"
 df_filtered_all <- ef2_prepared[0, ]
 
 # make dataframe with the learners that we want at each level
@@ -148,7 +141,7 @@ Once the scripts have been annotated, we need to count how many times each stude
 # file_format can be txt or csv
 get_output_path <- function(combined_lvl, file_format = "csv") {
   # NOTE change the output path if needed
-  return(paste0("../text_annotation/data/output_15Nov24/", combined_lvl, "/", file_format, "/"))
+  return(paste0("../text_annotation/data/output_21Nov24/", combined_lvl, "/", file_format, "/"))
 }
 
 get_learner_ids_by_lvl <- function(combined_lvl) {
@@ -284,7 +277,7 @@ for (constr in constructs) {
 }
 ```
 
-A total of 143 constructs do not show significant differences across levels.
+A total of 155 constructs do not show significant differences across levels.
 ```{r}
 length(kw_non_sign_constructs)
 
@@ -300,18 +293,18 @@ TODO Sample 2 from each level and try and find them?
 
 
 ```{r}
-# For all significant features,  do Wilcoxon Rank Sum tests to check for significant differences between the current level and the previous one. 
+# For all significant construct, do Wilcoxon Rank Sum tests to check for significant differences between the current level and the previous one. 
 levels <- c("A0_A1", "A1_A2", "A2_B1", "B1_B2", "B2_C1", "C1_C2")
 
-# store p-values from wilcoxon tests
-wcx_1side_pvals <- data.frame(matrix(ncol = 6, nrow = length(kw_sign_constructs)))
-names(wcx_1side_pvals) <- c("feature", "A1", "A2", "B1", "B2", "C1")
+# store p-values from wilcoxon tests for each construct
+wcx_pvals <- data.frame(matrix(ncol = 6, nrow = length(kw_sign_constructs)))
+names(wcx_pvals) <- c("feature", "A1", "A2", "B1", "B2", "C1")
 
 # For all relevant constructs, do a wilcoxon-test between all consecutive levels
 for (f in 1:length(kw_sign_constructs)) {
   constr <- kw_sign_constructs[f]
   # build the rows for the p-values column by column
-  wcx_1side_pvals_vec <- c()
+  wcx_pvals_vec <- c()
 
   for (i in 1:(length(levels) - 1)){
     level1 <- levels[i]
@@ -331,50 +324,116 @@ for (f in 1:length(kw_sign_constructs)) {
         print(paste0("Contsruct ", constr, " does not appear in any texts written by ", level2, " students"))
       }
 
-      wcx_1side_pvals_vec <- append(wcx_1side_pvals_vec, NA)
+      wcx_pvals_vec <- append(wcx_pvals_vec, NA)
 
     } else { # It must appear in BOTH levels to be compared
-      wcx_1side_result <- normalized_all_levels %>%
+      wcx_result <- normalized_all_levels %>%
         filter(feature == constr, text_level %in% c(level1, level2)) %>%
         wilcox.test(total ~ text_level, data = ., alternative = "less")
 
-      if (wcx_1side_result$p.value <= 0.05) {
-        wcx_1side_pvals_vec <- append(wcx_1side_pvals_vec, wcx_1side_result$p.value)
+      if (wcx_result$p.value <= 0.05) {
+        wcx_pvals_vec <- append(wcx_pvals_vec, wcx_result$p.value)
       } else {
-        wcx_1side_pvals_vec <- append(wcx_1side_pvals_vec, NA)
+        wcx_pvals_vec <- append(wcx_pvals_vec, NA)
       }
     }
   }
 
-  constr_1side_pval_row <- append(as.character(constr), wcx_1side_pvals_vec)
+  constr_pval_row <- append(as.character(constr), wcx_pvals_vec)
 
-  wcx_1side_pvals[f, ] <- constr_1side_pval_row
+  wcx_pvals[f, ] <- constr_pval_row
 
 }
 ```
 
 
-Based on the truth values, we predict the level of acquisition
+Based on the p-values, we predict the level of acquisition operationalized as the first level in which the per-student frequencies differ significantly between the start and end of the level.
+
 ```{r}
-wcx_1side_level_predict <-  data.frame(feature = kw_sign_constructs) %>%
+wcx_level_predict <-  data.frame(feature = kw_sign_constructs) %>%
   add_feature_level() %>%
   rename(EGP_level = feat_level) %>%
   rename(construct = feature) %>%
   mutate(first_sign_p_pred = NA, signif_at_EGP_level = NA)
 # Find first significant diff
-wcx_1side_level_predict <- fill_first_signif_pred(wcx_1side_pvals, wcx_1side_level_predict)
+wcx_level_predict <- fill_first_signif_pred(wcx_pvals, wcx_level_predict)
 
 # fill in TRUE FALSE, is there a significant difference at the level the EGP says?
-wcx_1side_level_predict <- fill_is_sig_at_lvl(wcx_1side_pvals, wcx_1side_level_predict)
+wcx_level_predict <- fill_is_sig_at_lvl(wcx_pvals, wcx_level_predict)
 ```
 
 
 ```{r}
-View(wcx_1side_level_predict)
+View(wcx_level_predict)
+```
+
+Now that we have some frequency-based predictions for the alignment between constructs and levels, we would like to see how they compare with the EGP alignments.
+
+For this, we use precision, recall, and F1-scores. 
+
+```{r}
+# Calculate precision, recall and F1 for t-tests predictions
+
+# get only the predictions for levels
+#we lack enough C2 data to look at both beginning and end, so our approach will never assign C2 as an acquisition level. Therefore, we filter out EGP-C2 constructs
+# Also,  there are no significant differences between consecutive combined levels for the construct, we cannot make a prediction and get an NA. Ignore those.
+wcx_predictions <- wcx_level_predict %>%
+  filter(EGP_level != "C2") %>%
+  filter(!is.na(first_sign_p_pred)) %>%
+  pull(first_sign_p_pred)
+
+# get the EGP level assignments
+egp_expected <- wcx_level_predict %>%
+  filter(EGP_level != "C2" & !is.na(first_sign_p_pred)) %>%
+  pull(EGP_level)
+
+
+# This calculates the precision and recall for having predicted the exact level.
+exact_metrics <- get_exact_precision_recall_f1(egp_expected, wcx_predictions)
+
+# This calculates the precision and recall for having predicted the exact level, or one level above or below.
+neighbors_metrics <- get_neigh_prec_rec_f1(egp_expected, wcx_predictions)
+
+
+print(exact_metrics)
+
+print(neighbors_metrics)
+```
+
+
+Visualize how predictions relate to the EGP levels
+```{r}
+library(caret)
+
+
+cm <- confusionMatrix(data = as.factor(wcx_predictions), reference = as.factor(egp_expected))["table"]
+
+conf_matrix <- table("EGP" = egp_expected, "Predicted" = wcx_predictions)
+cf <- as.data.frame(conf_matrix)
+
+
+conf_matrix_heatmap <-  ggplot(data = as.data.frame(cf), aes(x = Predicted, y =  EGP, fill = Freq)) +
+  geom_tile() +
+  geom_text(aes(label = Freq), color = "black") +
+  theme_light() +
+  guides(scale = NULL) +
+  coord_fixed() +
+  scale_fill_gradient(low="white", high="#3c8b3c")
+conf_matrix_heatmap
 ```
 
 ```{r}
+
 ```
+
+```{r}
+
+```
+
+
+```{r}
+```
+
 
 ```{r}
 ```
