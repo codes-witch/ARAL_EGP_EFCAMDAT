@@ -1,5 +1,5 @@
 ---
-title: "TODO paper title"
+title: "NLP-powered Quantitative Verification of the English Grammar Profile’s Structure- Level Assignment"
 output:
   pdf_document: default
   html_notebook: default
@@ -9,18 +9,19 @@ output:
 ## Preparing the environment
 
 ```{r}
-setwd("/home/daniela/Documents/ARAL_EGP_EFCAMDAT/R_files/")
-source("/home/daniela/Documents/ARAL_EGP_EFCAMDAT/R_files/functions.R")
+setwd("/home/XXXXX/Documents/ARAL_EGP_EFCAMDAT/R_files/")
+source("/home/XXXXX/Documents/ARAL_EGP_EFCAMDAT/R_files/functions.R")
 library(ggplot2)
 library(gridExtra)
 library("dplyr")
 library("stringr")
 library(tidyr)
+library("irr")
 library(tools)
 library(knitr)
 library("tidytext")
 library("tokenizers")
-load("/home/daniela/Documents/ARAL_EGP_EFCAMDAT/R_files/ef2_20181231.RData")
+load("/home/XXXXXX/Documents/ARAL_EGP_EFCAMDAT/R_files/ef2_20181231.RData")
 all_features <- readLines("all_features.txt")
 opts_chunk$set(cache = TRUE)
 ```
@@ -134,7 +135,7 @@ for (lvl in names(cefr_ef_lvls)) {
 
 Now, we run the Python script and wait. It will take a while. 
 
-Once the scripts have been annotated, we need to count how many times each student at the individual CEFR levels have used each construct.
+Once the scripts have been annotated, we need to count how many times each student at the individual CEFR levels have used each structure.
 
 ```{r}
 # For getting the output path dynamically given the level
@@ -198,7 +199,7 @@ c1c2_normalized <- cbind(get_feats_normalized_students(c1c2_feat_counts, c1c2_wo
 Now we know the normalized frequency of each costruct for the students at each level combination. 
 
 
-First, we get rid of all constructs which were not found in any student's writings:
+First, we get rid of all structures which were not found in any student's writings:
 
 ```{r}
 # put all dataframes together
@@ -214,12 +215,12 @@ zero_constructs <- normalized_all_levels %>%
   pull(feature) %>%
   unique()
 
-# remove these zero-constructs from our data
+# remove these zero-structures from our data
 normalized_all_levels <- normalized_all_levels %>%
   filter(!feature %in% zero_constructs)
 ```
 
-We can start statistically analyzing the construct frequency distributions per learner. 
+We can start statistically analyzing the structure frequency distributions per learner. 
 
 ```{r}
 # check for normality
@@ -245,18 +246,18 @@ normalized_all_levels %>%
 
 It is therefore wise to use non-parametric tests.
 
-First, we will apply the Kruskal-Wallis test to identify any constructs that do not vary significantly across proficiency levels.
+First, we will apply the Kruskal-Wallis test to identify any structures that do not vary significantly across proficiency levels.
 
 
 ```{r}
-constructs <- unique(normalized_all_levels$feature)
-kw_results <- list()  # mapping between 
+constructs <- unique(normalized_all_levels$feature) # These are all non-zero structures
+kw_results <- list()  # mapping between structures and their Kruskal-Wallis results
 kw_non_sign_constructs <- c()
 kw_sign_constructs <- c()
 kw_nan_results_constructs <- c()
 
 for (constr in constructs) {
-  # df with only the current construct. Check whether there are no occurrences of the feature.
+  # df with only the current structure. Check whether there are no occurrences of the feature.
   feature_dataframe <- normalized_all_levels %>%
     filter(feature == constr)
 
@@ -267,7 +268,7 @@ for (constr in constructs) {
 
   p_value <- kw_results[[constr]]$p.value
 
-  if (is.nan(p_value)) { # sanity check: kw_nan_results_constructs will remain empty because we are discarding all features with no occurrences
+  if (is.nan(p_value)) { # sanity check: kw_nan_results_structures will remain empty because we are discarding all features with no occurrences
     kw_nan_results_constructs <- append(kw_nan_results_constructs, constr)
   } else if (p_value > 0.05) {
     kw_non_sign_constructs <- append(kw_non_sign_constructs, constr)
@@ -277,14 +278,14 @@ for (constr in constructs) {
 }
 ```
 
-A total of 155 constructs do not show significant differences across levels.
+A total of 155 structures do not show significant differences across levels.
 ```{r}
 length(kw_non_sign_constructs)
 
 kw_non_sign_constructs <- data.frame(feature = kw_non_sign_constructs) %>%
   add_feature_level()
 
-# Add the level that the EGP assigns to these constructs
+# Add the level that the EGP assigns to these structures
 View(kw_non_sign_constructs)
 ```
 
@@ -293,14 +294,14 @@ TODO Sample 2 from each level and try and find them?
 
 
 ```{r}
-# For all significant construct, do Wilcoxon Rank Sum tests to check for significant differences between the current level and the previous one. 
+# For all significant structure, do Wilcoxon Rank Sum tests to check for significant differences between the current level and the previous one. 
 levels <- c("A0_A1", "A1_A2", "A2_B1", "B1_B2", "B2_C1", "C1_C2")
 
-# store p-values from wilcoxon tests for each construct
+# store p-values from wilcoxon tests for each structure
 wcx_pvals <- data.frame(matrix(ncol = 6, nrow = length(kw_sign_constructs)))
 names(wcx_pvals) <- c("feature", "A1", "A2", "B1", "B2", "C1")
 
-# For all relevant constructs, do a wilcoxon-test between all consecutive levels
+# For all relevant structures, do a wilcoxon-test between all consecutive levels
 for (f in 1:length(kw_sign_constructs)) {
   constr <- kw_sign_constructs[f]
   # build the rows for the p-values column by column
@@ -309,7 +310,7 @@ for (f in 1:length(kw_sign_constructs)) {
   for (i in 1:(length(levels) - 1)){
     level1 <- levels[i]
     level2 <- levels[i + 1]
-    print(paste0("Construct: ", constr))
+    print(paste0("Structure: ", constr))
 
     appears_in_lev1 <- sum(filter(normalized_all_levels, text_level == level1, feature == constr)$total) > 0
     appears_in_lev2 <- sum(filter(normalized_all_levels, text_level == level2, feature == constr)$total) > 0
@@ -359,7 +360,8 @@ wcx_level_predict <-  data.frame(feature = kw_sign_constructs) %>%
 wcx_level_predict <- fill_first_signif_pred(wcx_pvals, wcx_level_predict)
 
 # fill in TRUE FALSE, is there a significant difference at the level the EGP says?
-wcx_level_predict <- fill_is_sig_at_lvl(wcx_pvals, wcx_level_predict)
+wcx_level_predict <- fill_is_sig_at_lvl(wcx_pvals, wcx_level_predict) %>%
+  filter(EGP_level != "C2")
 ```
 
 
@@ -367,7 +369,7 @@ wcx_level_predict <- fill_is_sig_at_lvl(wcx_pvals, wcx_level_predict)
 View(wcx_level_predict)
 ```
 
-Now that we have some frequency-based predictions for the alignment between constructs and levels, we would like to see how they compare with the EGP alignments.
+Now that we have some frequency-based predictions for the alignment between structures and levels, we would like to see how they compare with the EGP alignments.
 
 For this, we use precision, recall, and F1-scores. 
 
@@ -375,8 +377,8 @@ For this, we use precision, recall, and F1-scores.
 # Calculate precision, recall and F1 for t-tests predictions
 
 # get only the predictions for levels
-#we lack enough C2 data to look at both beginning and end, so our approach will never assign C2 as an acquisition level. Therefore, we filter out EGP-C2 constructs
-# Also,  there are no significant differences between consecutive combined levels for the construct, we cannot make a prediction and get an NA. Ignore those.
+# we lack enough C2 data to look at both beginning and end, so our approach will never assign C2 as an acquisition level. Therefore, we filter out EGP-C2 structures
+# Also, if there are no significant differences between consecutive combined levels for the structure, we cannot make a prediction and get an NA. Ignore those.
 wcx_predictions <- wcx_level_predict %>%
   filter(EGP_level != "C2") %>%
   filter(!is.na(first_sign_p_pred)) %>%
@@ -406,8 +408,8 @@ Visualize how predictions relate to the EGP levels
 library(caret)
 
 
-cm <- confusionMatrix(data = as.factor(wcx_predictions), reference = as.factor(egp_expected))["table"]
-
+cm <- confusionMatrix(data = as.factor(wcx_predictions), reference = as.factor(egp_expected))
+cm
 conf_matrix <- table("EGP" = egp_expected, "Predicted" = wcx_predictions)
 cf <- as.data.frame(conf_matrix)
 
@@ -418,22 +420,181 @@ conf_matrix_heatmap <-  ggplot(data = as.data.frame(cf), aes(x = Predicted, y = 
   theme_light() +
   guides(scale = NULL) +
   coord_fixed() +
-  scale_fill_gradient(low="white", high="#3c8b3c")
-conf_matrix_heatmap
+  scale_fill_gradient(low = "white", high = "#3c8b3c")
+
+ggsave("plots/heatmap.png", plot = conf_matrix_heatmap)
+
+
+# caculate weighted Cohen's Kappa
+df_for_kappa <- wcx_level_predict %>%
+  filter(!is.na(first_sign_p_pred)) %>%
+  select(EGP_level, first_sign_p_pred)
+
+df_for_kappa$EGP_level <- as.factor(df_for_kappa$EGP_level)
+df_for_kappa$first_sign_p_pred <- as.factor(df_for_kappa$first_sign_p_pred)
+
+levels(df_for_kappa$first_sign_p_pred)
+
+kappa2(df_for_kappa, "squared")
 ```
+
+
+```{r}
+# These are the EGP-assigned levels of all structures:
+constr_lvl_df <- data.frame(feature = all_features)
+constr_lvl_df <- add_feature_level(constr_lvl_df)
+
+# See how many structures were zero that did NOT belong to C2:
+constr_lvl_df %>%
+  filter(feat_level != "C2" & feature %in% zero_constructs) %>%
+  count()
+```
+
+Here, we create the line plots to observe the development of the frequencies across levels.  
 
 ```{r}
 
+# # Save boxplots in a file
+# for (construct in constructs) {
+#   bp <- normalized_all_levels %>%
+#     get_boxplot_construct(construct)
+
+#   ggsave(paste0("plots/", constr_lvl_df[constr_lvl_df$feature == construct, "feat_level"], "_", construct, "_boxplot.png"), width= 5.40, height = 4.20, plot = bp)
+
+#   lp <- normalized_all_levels %>%
+#     get_lineplot(construct)
+
+#   ggsave(paste0("plots/", constr_lvl_df[constr_lvl_df$feature == construct, "feat_level"], "_", construct, "_lineplot.png"), width= 5.40, height = 4.20, plot = lp)
+# }
 ```
+
+We have 120 structures that do not appear in any of the texts. Observe the percetages of missing structures per level
+
+```{r}
+get_percent_constr_zero_freq <- function(construct_level_df) {
+  # df mapping zero-frequency structures to their EGP-assigned level
+  zero_feats_level <- data.frame(feature = zero_constructs)
+  zero_feats_level <- add_feature_level(zero_feats_level)
+
+  cefr_levels <- c("A1", "A2", "B1", "B2", "C1", "C2")
+
+  percent_df <- data.frame(level = cefr_levels, percentage_zero_freq = rep(NA, 6), n_zero_freq = rep(NA, 6))
+
+  for (lvl in cefr_levels) {
+    # All structures of the level
+    n_constr_level <- construct_level_df %>%
+      filter(feat_level == lvl) %>%
+      count()
+    # Only structures with zero-frequency of the level
+    n_zero_feats_lvl <- zero_feats_level %>%
+      filter(feat_level == lvl) %>%
+      count()
+    # calculate the percentage
+    percent_df[percent_df$level == lvl,]$percentage_zero_freq <- n_zero_feats_lvl / n_constr_level * 100
+    percent_df[percent_df$level == lvl,]$n_zero_freq <- n_zero_feats_lvl
+  }
+
+  return(percent_df)
+}
+
+get_percent_constr_zero_freq(constr_lvl_df)
+```
+
+Now we observe how the structures for which the Kruskal-Wallis test found significant differences are distributed across EGP levels  
+
+```{r}
+# Calculate the percentage of structures of each level that were informative (Kruskal-Wallis)
+get_percent_informative <- function(construct_level_df = constr_lvl_df, informative_constr = kw_sign_constructs, zero_constr = zero_constructs) {
+  cefr_levels <- c("A1", "A2", "B1", "B2", "C1")
+  ret_df <- data.frame(EGP_lvl = cefr_levels, num_informative_constr = rep(NA, 5), percent_informative_level = rep(NA, 5))
+
+  #Iterate over CEFR levels
+  for (lvl in cefr_levels) {
+    #count all structures of the level that are not zero
+    num_found_at_level <- construct_level_df %>%
+      filter(feat_level == lvl & !(feature %in% zero_constr)) %>%
+      count()
+
+    num_significant_at_level <- construct_level_df %>%
+      filter(feat_level == lvl & feature %in% informative_constr) %>%
+      count()
+
+    ret_df[ret_df$EGP_lvl == lvl, ]$num_informative_constr <- num_significant_at_level
+    ret_df[ret_df$EGP_lvl == lvl, ]$percent_informative_level <- num_significant_at_level / num_found_at_level * 100
+  }
+
+  return(ret_df)
+
+}
+
+kable(get_percent_informative(), format = "latex")
+```
+
+What percentage of structures show a significant difference at their EGP-assigned level?
 
 ```{r}
 
+# Number of structures per EGP level that presented difference at the EGP level
+num_per_level_sign <- function(predict_df){
+  cefr_levels <- c("A1", "A2", "B1", "B2", "C1")
+  ret_df <- data.frame(EGP_lvl = cefr_levels, signific_at_EGP_lvl = rep(NA, 5), signific_at_EGP_lvl_total = rep(NA, 5))
+
+  # Only structures that were significant at their EGP-assigned level
+  sign_at_level <- predict_df %>%
+    filter(signif_at_EGP_level == TRUE)
+
+  for (lvl in cefr_levels){
+    n <- sign_at_level %>% # number of structures significant at this level
+      filter(EGP_level == lvl) %>%
+      count()
+
+    n_all <- predict_df %>% # all structures at this level
+      filter(EGP_level == lvl) %>%
+      count()
+
+    ret_df[ret_df$EGP_lvl == lvl, ]$signific_at_EGP_lvl <- n / n_all * 100
+    ret_df[ret_df$EGP_lvl == lvl, ]$signific_at_EGP_lvl_total <- n
+  }
+
+  return(ret_df)
+}
+
+num_per_level_sign(wcx_level_predict)
+
+```
+
+In total, what percentage of structures show a significant difference at their EGP-level?
+
+```{r}
+accuracy_signif_at_level(wcx_level_predict)
+```
+
+Now, we sample two structures from each EGP level to find in the data:
+```{r}
+set.seed(1234)
+
+# non-zero structures with their EGP level
+non_zero_with_lvl <- as.data.frame(constructs)
+colnames(non_zero_with_lvl) <- c("feature")
+non_zero_with_lvl <- add_feature_level(non_zero_with_lvl)
+
+print(paste("A1", sample(non_zero_with_lvl[non_zero_with_lvl["feat_level"] == "A1", ]$feature, size=2)))
+print(paste("A2", sample(non_zero_with_lvl[non_zero_with_lvl["feat_level"] == "A2", ]$feature, size=2)))
+print(paste("B1", sample(non_zero_with_lvl[non_zero_with_lvl["feat_level"] == "B1", ]$feature, size=2)))
+print(paste("B2", sample(non_zero_with_lvl[non_zero_with_lvl["feat_level"] == "B2", ]$feature, size=2)))
+print(paste("C1", sample(non_zero_with_lvl[non_zero_with_lvl["feat_level"] == "C1", ]$feature, size=2)))
+
+```
+
+
+
+```{r}
+zero_constructs
 ```
 
 
 ```{r}
-```
-
-
-```{r}
+constr_lvl_df %>%
+  filter(feat_level == "C2") %>%
+  count()
 ```
