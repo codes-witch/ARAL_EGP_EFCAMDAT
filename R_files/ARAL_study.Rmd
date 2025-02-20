@@ -21,10 +21,13 @@ library(tools)
 library(knitr)
 library("tidytext")
 library("tokenizers")
-load("/home/XXXXXX/Documents/ARAL_EGP_EFCAMDAT/R_files/ef2_20181231.RData")
+load("/home/XXXXX/Documents/ARAL_EGP_EFCAMDAT/R_files/ef2_20181231.RData") # This file
+egp_list <- read.csv("/home/daniela/Documents/ARAL_EGP_EFCAMDAT/egp_list.csv", sep = ";")
 all_features <- readLines("all_features.txt")
 opts_chunk$set(cache = TRUE)
 ```
+
+NOTE: we do not provide access to the corpus, but we provide the files with the <System> annotations. The following code chunks are simply to illustrate the selection and sampling of the learners. For reproduction, start at the point where the texts have been annotated with the structures.
 
 First, we add a column with the CEFR level that each text should belong to based on the EFCAMDAT level
 
@@ -58,9 +61,7 @@ cefr_ef_lvls <- list( # These are the EFCamDat levels that correspond to each CE
   "C2" = c(16)
 )
 
-# A dataframe containing the (ef_level, unit) pairs that we are interested in
-ef_lvl_unit_df <- data.frame(ef_lvl = sapply(cefr_ef_lvls, ))
-ef_lvl_unit_df
+# A named list (dictionary) mapping levels to the students that finished them
 list_students_finsihed <- list()
 
 
@@ -102,7 +103,7 @@ From the learners who completed the levels, we must sample 49 without replacemen
 These people's texts in the first and last three units of their CEFR levels will be the ones to be analyzed.
 In total, at each combined level we will have scripts written by 98 students and we will use them as a "snapshot" of their proficiency once the lower level reached.
 
-Now, we must sample the students and extract their texts to be analyzed by the POLKE tool.
+Now, we must sample the students and extract their texts to be analyzed by the <System> tool.
 
 ```{r}
 sampled_learners <- list()
@@ -137,6 +138,7 @@ Now, we run the Python script and wait. It will take a while.
 
 Once the scripts have been annotated, we need to count how many times each student at the individual CEFR levels have used each structure.
 
+NOTE: here, we read in the annotations. From now on, the code can be run to reproduce our results.
 ```{r}
 # For getting the output path dynamically given the level
 # file_format can be txt or csv
@@ -165,8 +167,6 @@ count_constrs_by_lvl <- function(combined_lvl, make_long = TRUE) {
     make_long = make_long
   ))
 }
-
-# learner_wc_by_level <-
 
 # These dfs contain the feature counts for all learners at each combined level
 a0a1_feat_counts <- count_constrs_by_lvl("A0_A1", make_long = FALSE)
@@ -231,7 +231,7 @@ normalized_all_levels %>%
   ggdensity()
 ```
 
-We observe that the data is essentialy exponential, with a vast majority of the constructs having close to zero frequecy. 
+We observe that the data is not normally distrubuted, with a vast majority of the constructs having close to zero frequecy. 
 Log transforming the data does not reveal a normal distribution either.
 
 
@@ -282,15 +282,12 @@ A total of 155 structures do not show significant differences across levels.
 ```{r}
 length(kw_non_sign_constructs)
 
-kw_non_sign_constructs <- data.frame(feature = kw_non_sign_constructs) %>%
-  add_feature_level()
+# From the EGP list file, get the structures with where no significant differences were found:
+uninformative_kw <- egp_list %>%
+  filter(EGP_ID %in% kw_non_sign_constructs)
 
-# Add the level that the EGP assigns to these structures
-View(kw_non_sign_constructs)
+write.table(uninformative_kw, file = "kw_discarded_structures.csv", sep = ";") # Create the CSV
 ```
-
-
-TODO Sample 2 from each level and try and find them?
 
 
 ```{r}
@@ -584,17 +581,4 @@ print(paste("B1", sample(non_zero_with_lvl[non_zero_with_lvl["feat_level"] == "B
 print(paste("B2", sample(non_zero_with_lvl[non_zero_with_lvl["feat_level"] == "B2", ]$feature, size=2)))
 print(paste("C1", sample(non_zero_with_lvl[non_zero_with_lvl["feat_level"] == "C1", ]$feature, size=2)))
 
-```
-
-
-
-```{r}
-zero_constructs
-```
-
-
-```{r}
-constr_lvl_df %>%
-  filter(feat_level == "C2") %>%
-  count()
 ```
