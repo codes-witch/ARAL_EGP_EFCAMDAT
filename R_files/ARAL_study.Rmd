@@ -22,7 +22,7 @@ library(knitr)
 library("tidytext")
 library("tokenizers")
 load("/home/XXXXX/Documents/ARAL_EGP_EFCAMDAT/R_files/ef2_20181231.RData") # This file
-egp_list <- read.csv("/home/daniela/Documents/ARAL_EGP_EFCAMDAT/egp_list.csv", sep = ";")
+egp_list <- read.csv("/home/XXXXX/Documents/ARAL_EGP_EFCAMDAT/egp_list.csv", sep = ";")
 all_features <- readLines("all_features.txt")
 opts_chunk$set(cache = TRUE)
 ```
@@ -119,7 +119,7 @@ for (level in names(cefr_ef_lvls)) {
 Students have been sampled. Now, we need to extract their texts and put them in .txt files to be analyzed by the python script.
 
 ```{r}
-input_path <- "/home/daniela/Documents/ARAL_EGP_EFCAMDAT/text_annotation/data/input_21Nov24/"
+input_path <- "/home/XXXXX/Documents/ARAL_EGP_EFCAMDAT/text_annotation/data/input_21Nov24/"
 df_filtered_all <- ef2_prepared[0, ]
 
 # make dataframe with the learners that we want at each level
