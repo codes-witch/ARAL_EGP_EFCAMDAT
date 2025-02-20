@@ -36,45 +36,6 @@ ef_text_2_txt <- function(dataframe, directory) {
   }
 }
 
-# # Get the EF level at which a cefr level starts
-# get_start_ef_level <- function(cefr_level) {
-#   start <- switch(cefr_level,
-#     "a1" <- 1,
-#     "a2" <- 4,
-#     "b1" <- 7,
-#     "b2" <- 10,
-#     "c1" <- 13,
-#     "c2" <- 16,
-#     "INVALID CEFR LEVEL"
-#   )
-
-#   return(start)
-# }
-
-# # Get the EF level at which a CEFR level ends
-# get_end_ef_level <- function(cefr_level) {
-#   if (cefr_level == "c2") {
-#     return(16)
-#   } else {
-#     return(get_start_ef_level(cefr_level) + 2)
-#   }
-# }
-
-# get_start_units <- function(cefr_level, n = 6) {
-#   if (n > 8) {
-#     print("Cannot use more than 8 units")
-#     return()
-#   }
-
-#   return(as.list(seq(1:n)))
-# }
-
-# get_end_units <- function(cefr_level, n = 6) {
-#   # start at 8 and iterate backwards
-#   ret_val <- as.list(seq(from = 8, by = -1, length.out = n))
-#   return(ret_val)
-# }
-
 
 
 # To add cefr levels when we have EF levels
@@ -125,129 +86,6 @@ add_feature_level <- function(dataframe) {
   ))
 }
 
-# put_learner_id_in_filenames <- function(directory_path, ef_df) {
-#   # Get the list of files in the directory
-#   file_list <- list.files(directory_path, full.names = TRUE, recursive = TRUE)
-
-#   # Iterate through each file
-#   for (file_path in file_list) {
-#     # Extract the filename without extension
-#     file_name <- tools::file_path_sans_ext(basename(file_path))
-#     extension <- paste0(".", tools::file_ext())
-#     print(file_name)
-
-#     if (grepl("learner", file_name)) {
-#       next
-#     }
-
-#     # Get textID
-#     match <- regmatches(file_path, regexpr("\\d+_", file_path))
-
-#     # Delete everything including and after thefirst underscore
-#     textID <- sub("_.*", "", match[1])
-
-#     # Find the corresponding learnerId in ef2 dataset
-#     learner_id <- ef_df$learnerID[ef_df$id == textID]
-
-#     new_file_name <- paste0(file_name, "_learner", learner_id, extension)
-#     new_file_path <- file.path(directory_path, new_file_name)
-#     file.rename(file_path, new_file_path)
-#     print(paste0("New file path: ", new_file_path))
-#   }
-
-
-# }
-
-
-# For renaming files to the pattern <file_id>_<unit>_<iso_code>.txt
-# put_units_and_lang_in_filenames <-function(directory_path, dataframe) {
-#     print("in function")
-#     # Get the list of files in the directory
-#     file_list <- list.files(directory_path, pattern = "\\.txt$", full.names = TRUE, recursive = TRUE)
-
-#     # Iterate through each file
-#     for (file_path in file_list) {
-#       # Extract the filename without extension
-#       file_name <- tools::file_path_sans_ext(basename(file_path))
-#       print(file_name)
-
-#       # Find the corresponding unit in ef2 dataset
-#       unit <- dataframe$unit[dataframe$id == file_name]
-#       lang_iso <- dataframe$lang_iso[dataframe$id == file_name]
-#       if (is.null(lang_iso) || lang_iso == "") {
-#         lang_iso <- "xx"
-#       }
-#       print(paste0("Unit: ", unit))
-#       print(paste0("language ISO: ", lang_iso))
-
-#       # Rename the file
-#       new_file_name <- paste0(file_name, "_", unit, "_", lang_iso, ".txt")
-#       new_file_path <- file.path(directory_path, new_file_name)
-#       file.rename(file_path, new_file_path)
-#       print(paste0("New file path: ", new_file_path))
-#     }
-
-
-# }
-
-
-
-# # For renaming the filenames to always have access to unit and id
-# # Dataframe is the reference df where we get the units from
-# put_units_in_filenames <- function(directory_path, dataframe){
-
-#   # Get the list of files in the directory
-#   file_list <- list.files(directory_path, pattern = "\\.txt$", full.names = TRUE)
-
-#   # Iterate through each file
-#   for (file_path in file_list) {
-#     # Extract the filename without extension
-#     file_name <- tools::file_path_sans_ext(basename(file_path))
-#     print(file_name)
-
-#     # Don't add unit if it already has it
-#     if (grepl("_", file_name)){
-#       next
-#     }
-
-#     # Find the corresponding unit in ef2 dataset
-#     unit <- dataframe$unit[dataframe$id == file_name]
-#     print(unit)
-
-#     # Rename the file
-#     new_file_name <- paste0(unit, "_", file_name, ".txt")
-#     new_file_path <- file.path(directory_path, new_file_name)
-#     file.rename(file_path, new_file_path)
-#   }
-
-
-# }
-
-# add_newline_to_files <- function(directory_path) {
-#   # Get a list of all files in the directory and its subdirectories
-#   file_list <- list.files(directory_path, recursive = TRUE, full.names = TRUE)
-
-#   # Loop through each file
-#   for (file_path in file_list) {
-#     print(file_path)
-#     # Check if the file is a text file
-#     if (endsWith(file_path, ".txt")) {
-#       # Read the contents of the file
-#       file_contents <- readLines(file_path)
-
-#       # Add a new line at the end of the file contents
-#       file_contents <- c(file_contents)
-
-#       # Write the updated contents back to the file
-#       writeLines(file_contents, file_path)
-
-#       # Print a message for each file processed
-#       print("New line added")
-#     }
-#   }
-# }
-
-
 
 # -------------------------------------------------------------------
 # ------------------------------ COUNTS------------------------------
@@ -278,6 +116,7 @@ get_learner_word_count_at_level <- function(learner_id, directory_path) {
   return(count_words_in_directory(directory_path, pattern = paste0("learner", learner_id, "\\.txt$")))
 }
 
+# get a df of word counts per learner
 get_learner_word_count_df <- function(learner_ids, directory_path) {
   learner_wc <- data.frame(matrix(ncol = 1, nrow = length(learner_ids)))
 
@@ -300,73 +139,6 @@ get_feats_normalized_students <- function(feat_count_df, word_count_df, make_lon
   }
 }
 
-# # Use this for calculating the percentages
-# count_texts_per_unit <- function(directory_path) {
-#   file_list <- list.files(directory_path, recursive = TRUE, pattern = "\\.txt$")
-#   unit_count_df = data.frame(matrix(nrow = 128, ncol = 1))
-#   unit_count_df[] <- 0
-#   colnames(unit_count_df) <- c("n_texts")
-#   for (file_path in file_list){
-#     print(file_path)
-#     # get the file unit and id
-#     file_unit <- as.integer(str_extract(file_path, "\\d+(?=_)"))
-#     file_id <- as.integer(str_extract(file_path, "(?<=_)\\d+"))
-
-#     # add one to the unit counts
-#     unit_count_df$n_texts[file_unit] <- unit_count_df$n_texts[file_unit] + 1
-
-#   }
-#   return(unit_count_df)
-# }
-
-
-# # 6 levels x 2 cols (level, counts). Use for percentages
-# count_texts_per_level <- function(directory_path, lang=NULL){
-#   file_list <- list.files(directory_path, recursive = TRUE, pattern = "\\.csv$")
-#   level_count_df <- data.frame(level = c("a1", "a2", "b1", "b2", "c1", "c2"), n_texts = 0)
-
-#   for (file_path in file_list){
-#     print(file_path)
-#     # get the file level, unit, id and language.
-#     # The file naming convention is <level>/<id>_<unit>_<lang_iso>.txt
-#     level <- str_extract(file_path, "[abc]\\d")
-#     unit <- str_extract(file_path, "(?<=_)\\d+")
-#     file_id <- str_extract(file_path, "(?<=/)\\d+")
-#     lang_iso <- str_extract(file_path, "[a-z]{2}")
-#     print(paste0("level: ", level))
-#     print(paste0("file_id: ", file_id))
-#     print(paste0("unit: ", unit))
-#     print(paste0("lang_iso: ", lang_iso))
-
-#     # find the row index based on the level
-#     row_index <- which(level_count_df$level == level)
-#     if (is.null(lang)) {
-#       print("No lang param passed. Counting all texts.")
-#       level_count_df$n_texts[row_index] <- level_count_df$n_texts[row_index] +1
-#     } else if (tolower(lang) == lang_iso) {
-#       print("Languages are equal. Counting this file.")
-#       level_count_df$n_texts[row_index] <- level_count_df$n_texts[row_index] +1
-#     } else {
-#       print("Languages are not equal. Skipping this")
-#     }
-
-#   }
-#   return(level_count_df)
-
-# }
-
-# File path is the output file
-# features_in_text_file <- function(file_path){
-#   return(unique(readLines(file_path)))
-# }
-
-# unique_features_in_csv <- function(file_path) {
-#   csv_file <- read.csv(file_path)
-#   unique_feats <- as.character(unique(csv_file$constructID))
-#   print(unique_feats)
-#   #remove empty character
-#   return(unique_feats)
-# }
 
 # For making a dataframe long.
 make_long_feats_df <- function(dataframe, exclude_col, values_colname) {
@@ -375,211 +147,6 @@ make_long_feats_df <- function(dataframe, exclude_col, values_colname) {
 
   return(dataframe)
 }
-
-# # unit x features in short form. Also possible to make long.
-# # Each row in feats_in_units corresponds to a unit and each column corresponds to a feature.
-# # The values in the cells are how many texts contain feature C in unit R
-# get_feats_in_units <- function(all_features, directory_path, make_long = TRUE) {
-#   file_list <- list.files(directory_path, pattern = "\\.txt$", full.names = TRUE, recursive = TRUE)
-
-#   feats_in_units <- data.frame(matrix(ncol = 659, nrow = 128))
-#   # make all NANs 0
-#   feats_in_units[is.na(feats_in_units)] <- 0
-#   colnames(feats_in_units) <- all_features
-
-#   for (file_path in file_list) {
-#     # Get the unique features in the text
-#     unique_feats = features_in_text_file(file_path)
-#     # get unit text belongs to
-#     unit <- as.integer(str_extract(file_path, "\\d+(?=_)"))
-
-#     print(file_path)
-#     print(unique_feats)
-
-#     # Per feat in text, add one to the counts
-#     for (feat in unique_feats) {
-#       feats_in_units[unit, feat] <- feats_in_units[unit, feat] + 1
-#     }
-#   }
-#   feats_in_units <- cbind(unit = c(1:nrow(feats_in_units)), feats_in_units)
-
-#   if (make_long){
-#     feats_in_units <- make_long_feats_df(feats_in_units, "unit", "total")
-#   }
-
-#   return(feats_in_units)
-# }
-
-# # Each row in feats_in_level corresponds to a level and each column corresponds to a feature.
-# # Counts features presence per text (aka the first approach)
-# # DEPRECATED. USE get_feat_presence_in_texts
-# get_feats_in_levels <- function(all_features, directory_path, make_long = TRUE, percentage = TRUE) {
-#   file_list <- list.files(directory_path, pattern = "\\.txt$", full.names = TRUE, recursive = TRUE)
-
-#   # define dataframe:
-#   feats_in_levels <- data.frame(matrix(ncol = length(all_features), nrow = 6))
-#   # make all NANs 0
-#   feats_in_levels[] <- 0
-
-#   colnames(feats_in_levels) <- all_features
-#   print(file_list)
-
-#   # get number of files per level
-#   level_counts <- count_texts_per_level(directory_path)
-
-#   for (file_path in file_list) {
-#     print(file_path)
-#     # Get the unique features in the text
-#     unique_feats = features_in_text_file(file_path)
-#     # Get the level
-#     level <- str_extract(file_path, "[abc]\\d")
-#     if (level == "a1"){
-#       level_num = 1
-#     } else if (level == "a2") {
-#       level_num = 2
-#     } else if (level == "b1") {
-#       level_num = 3
-#     } else if (level == "b2") {
-#       level_num = 4
-#     } else if (level == "c1") {
-#       level_num = 5
-#     } else if (level == "c2") {
-#       level_num = 6
-#     }
-
-#     for (feat in unique_feats) {
-#       feats_in_levels[level_num , feat] <- feats_in_levels[level_num , feat]  + 1
-#     }
-
-
-#   }
-
-#   if (percentage){
-#     feats_in_levels <- feats_in_levels / level_counts$n_texts
-#   }
-
-#   # add the level names
-#   feats_in_levels = cbind(level = c("a1", "a2", "b1", "b2", "c1", "c2"), feats_in_levels)
-
-#   if (make_long){
-#     feats_in_levels <- make_long_feats_df(feats_in_levels, "level", "total")
-#   }
-#   return(feats_in_levels)
-
-# }
-
-# Each row in feats_in_level corresponds to a level and each column corresponds to a feature.
-# Counts features presence per text (aka the first approach)
-# get_feat_presence_in_texts <- function(all_features, directory_path, make_long = TRUE, percentage = TRUE) {
-#   file_list <- list.files(directory_path, pattern = "\\.csv$", full.names = TRUE, recursive = TRUE)
-
-#   # define dataframe:
-#   feats_in_levels <- data.frame(matrix(ncol = length(all_features), nrow = 6))
-#   # make all NANs 0
-#   feats_in_levels[] <- 0
-
-#   colnames(feats_in_levels) <- all_features
-#   print(file_list)
-
-#   # get number of files per level
-#   level_counts <- count_texts_per_level(directory_path)
-
-#   for (file_path in file_list) {
-#     print(file_path)
-#     # Get the unique features in the text
-#     unique_feats = unique_features_in_csv(file_path)
-#     print(unique_feats)
-#     # Get the level
-#     level <- str_extract(file_path, "[abc]\\d")
-#     if (level == "a1"){
-#       level_num = 1
-#     } else if (level == "a2") {
-#       level_num = 2
-#     } else if (level == "b1") {
-#       level_num = 3
-#     } else if (level == "b2") {
-#       level_num = 4
-#     } else if (level == "c1") {
-#       level_num = 5
-#     } else if (level == "c2") {
-#       level_num = 6
-#     }
-
-#     for (feat in unique_feats) {
-#       print(paste0("level_num: ", level_num, "feat: ", feat))
-#       feats_in_levels[level_num, feat] <- feats_in_levels[level_num , feat]  + 1
-#     }
-
-
-#   }
-
-#   if (percentage){
-#     feats_in_levels <- feats_in_levels / level_counts$n_texts
-#   }
-
-#   # add the level names
-#   feats_in_levels = cbind(level = c("a1", "a2", "b1", "b2", "c1", "c2"), feats_in_levels)
-
-#   if (make_long){
-#     feats_in_levels <- make_long_feats_df(feats_in_levels, "level", "total")
-#   }
-#   return(feats_in_levels)
-
-# }
-
-
-# # Each row in feat_count_per_level corresponds to a level and each column corresponds to a feature.
-# get_feat_count_per_level <- function(all_features, directory_path, make_long = TRUE) {
-#   file_list <- list.files(directory_path, pattern = "\\.csv$", full.names = TRUE, recursive = TRUE)
-
-#   # define dataframe:
-#   feat_count_per_level <- data.frame(matrix(ncol = length(all_features), nrow = 6))
-#   # make all NANs 0
-#   feat_count_per_level[] <- 0
-
-#   colnames(feat_count_per_level) <- all_features
-
-#   for (file_path in file_list) {
-#     print(file_path)
-#     # Get the features in the file:
-#     csv_file <- read.csv(file_path)
-
-#     # Get the frequency of all features found in the text
-#     frequencies <- table(csv_file$constructID)
-
-#     # Get the level
-#     level <- str_extract(file_path, "[abc]\\d")
-#     if (level == "a1"){
-#       level_num = 1
-#     } else if (level == "a2") {
-#       level_num = 2
-#     } else if (level == "b1") {
-#       level_num = 3
-#     } else if (level == "b2") {
-#       level_num = 4
-#     } else if (level == "c1") {
-#       level_num = 5
-#     } else if (level == "c2") {
-#       level_num = 6
-#     }
-
-#     for (feature in names(frequencies)) {
-#       feat_count_per_level[level_num , feature] <- feat_count_per_level[level_num , feature] + frequencies[[feature]]
-#     }
-
-
-#   }
-
-
-#   # add the level names
-#   feat_count_per_level = cbind(level = c("a1", "a2", "b1", "b2", "c1", "c2"), feat_count_per_level)
-
-#   if (make_long){
-#     feat_count_per_level <- make_long_feats_df(feat_count_per_level, "level", "total")
-#   }
-#   return(feat_count_per_level)
-
-# }
 
 # Each row in feat_count_per_student corresponds to a student and each column corresponds to a feature.
 get_feat_count_per_student <- function(directory_path, make_long = TRUE, learner_ids) {
@@ -608,7 +175,6 @@ get_feat_count_per_student <- function(directory_path, make_long = TRUE, learner
     }
   }
 
-  # print("finished looping")
 
   if (make_long) {
     feat_count_per_student$learnerID <- rownames(feat_count_per_student)
@@ -616,20 +182,6 @@ get_feat_count_per_student <- function(directory_path, make_long = TRUE, learner
   }
   return(feat_count_per_student)
 }
-
-# get_learner_ids_by_ntexts_level_with_directory_path <- function(directory_path, min_num_texts) {
-#   file_list <- list.files(directory_path, pattern = paste0("\\.csv$"), full.names = TRUE, recursive = TRUE)
-#   # Get only the <learnerID> part
-#   match_indices <- regexpr("learner\\d+", file_list)
-#   learner_ids <- regmatches(file_list, match_indices) # at this point we have "learner<ID>"
-#   # Extract number to get the learner IDs on their own
-#   match_indices <- regexpr("\\d+", learner_ids)
-#   learner_ids <- regmatches(learner_ids, match_indices)
-
-#   freqs <- as.data.frame(table(learner_ids))
-#   learner_ids <- freqs[freqs$Freq >= min_num_texts ,]$learner_ids
-#   return(learner_ids)
-# }
 
 get_language_frequencies <- function(directory_path) {
   # Get the language from the output file names
@@ -645,14 +197,6 @@ get_language_frequencies <- function(directory_path) {
 #--------------------------------------------------------
 #-------------------------PLOTS--------------------------
 #--------------------------------------------------------
-# Make the boxplot by grouping different feature levels - optional vector for ylim
-# make_boxpolot_group <- function(df, ylim_vector=NULL){
-#   ggplot(df, aes(x=level, y=total, fill=feat_level))+
-#     geom_boxplot(notch = TRUE)+
-#     labs(fill="Feature level", x="Text level", y="Percentage of presence")+
-#     coord_cartesian(ylim = ylim_vector)
-# }
-
 
 get_boxplot_construct <- function(df, constr_id, title = NULL) {
 
@@ -846,11 +390,11 @@ get_neigh_prec_rec_f1 <- function(actual, predicted) {
         tp <- tp + 1
         total_tp <- total_tp + tp
       } else if (actual[i] == l) {
-        # print("New FN")
+        # New FN
         fn <- fn + 1
         total_fn <- total_fn + fn
       } else if (predicted[i] == l) {
-        # print("New FP")
+        # New FP
         fp <- fp + 1
         total_fp <- total_fp + fp
       }
