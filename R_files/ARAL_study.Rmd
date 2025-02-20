@@ -114,7 +114,7 @@ for (level in names(cefr_ef_lvls)) {
 }
 
 # To check that the sampling is deterministic, run this line several times and check the learnerIDs
-# sapply(sampled_learners, function(x) sort(unique(x)))
+sapply(sampled_learners, function(x) sort(unique(x)))
 ```
 
 Students have been sampled. Now, we need to extract their texts and put them in .txt files to be analyzed by the python script.
@@ -132,7 +132,7 @@ for (lvl in names(cefr_ef_lvls)) {
 }
 
 # Put the texts into .txt files
-# ef_text_2_txt(df_filtered_all, input_path)
+ef_text_2_txt(df_filtered_all, input_path)
 ```
 
 Now, we run the Python script and wait. It will take a while. 
@@ -452,18 +452,13 @@ Here, we create the line plots to observe the development of the frequencies acr
 
 ```{r}
 
-# # Save plots in a file
-# for (construct in constructs) {
-#   bp <- normalized_all_levels %>%
-#     get_boxplot_construct(construct)
+# Save plots in a file
+for (structure in constructs) {
+  lp <- normalized_all_levels %>%
+    get_lineplot(structure)
 
-#   ggsave(paste0("plots/", constr_lvl_df[constr_lvl_df$feature == construct, "feat_level"], "_", construct, "_boxplot.png"), width= 5.40, height = 4.20, plot = bp)
-
-#   lp <- normalized_all_levels %>%
-#     get_lineplot(construct)
-
-#   ggsave(paste0("plots/", constr_lvl_df[constr_lvl_df$feature == construct, "feat_level"], "_", construct, "_lineplot.png"), width= 5.40, height = 4.20, plot = lp)
-# }
+  ggsave(paste0("plots/", constr_lvl_df[constr_lvl_df$feature == structure, "feat_level"], "_", structure, "_lineplot.png"), width= 5.40, height = 4.20, plot = lp)
+}
 ```
 
 We have 120 structures that do not appear in any of the texts. Observe the percetages of missing structures per level
