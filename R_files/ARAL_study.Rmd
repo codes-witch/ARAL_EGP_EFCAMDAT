@@ -452,7 +452,7 @@ Here, we create the line plots to observe the development of the frequencies acr
 
 ```{r}
 
-# # Save boxplots in a file
+# # Save plots in a file
 # for (construct in constructs) {
 #   bp <- normalized_all_levels %>%
 #     get_boxplot_construct(construct)
@@ -528,7 +528,7 @@ get_percent_informative <- function(construct_level_df = constr_lvl_df, informat
 kable(get_percent_informative(), format = "latex")
 ```
 
-What percentage of structures show a significant difference at their EGP-assigned level?
+What percentage of structures at each level show a significant difference at their EGP-assigned level?
 
 ```{r}
 
@@ -565,21 +565,4 @@ In total, what percentage of structures show a significant difference at their E
 
 ```{r}
 accuracy_signif_at_level(wcx_level_predict)
-```
-
-Now, we sample two structures from each EGP level to find in the data:
-```{r}
-set.seed(1234)
-
-# non-zero structures with their EGP level
-non_zero_with_lvl <- as.data.frame(constructs)
-colnames(non_zero_with_lvl) <- c("feature")
-non_zero_with_lvl <- add_feature_level(non_zero_with_lvl)
-
-print(paste("A1", sample(non_zero_with_lvl[non_zero_with_lvl["feat_level"] == "A1", ]$feature, size=2)))
-print(paste("A2", sample(non_zero_with_lvl[non_zero_with_lvl["feat_level"] == "A2", ]$feature, size=2)))
-print(paste("B1", sample(non_zero_with_lvl[non_zero_with_lvl["feat_level"] == "B1", ]$feature, size=2)))
-print(paste("B2", sample(non_zero_with_lvl[non_zero_with_lvl["feat_level"] == "B2", ]$feature, size=2)))
-print(paste("C1", sample(non_zero_with_lvl[non_zero_with_lvl["feat_level"] == "C1", ]$feature, size=2)))
-
 ```
