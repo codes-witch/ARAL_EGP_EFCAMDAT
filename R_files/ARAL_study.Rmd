@@ -22,7 +22,8 @@ library(knitr)
 library("tidytext")
 library("tokenizers")
 load("/home/XXXXX/Documents/ARAL_EGP_EFCAMDAT/R_files/ef2_20181231.RData") # This file
-egp_list <- read.csv("/home/XXXXX/Documents/ARAL_EGP_EFCAMDAT/egp_list.csv", sep = ";")
+egp_list <- read.csv("/XXXXXX/", sep = ";") #You can obtain this file here: https://www.englishprofile.org/english-grammar-profile/egp-online
+# all structures implemented in <System>
 all_features <- readLines("all_features.txt")
 opts_chunk$set(cache = TRUE)
 ```
